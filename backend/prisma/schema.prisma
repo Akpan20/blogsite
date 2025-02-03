@@ -1,0 +1,245 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  username      String    @unique
+  password      String
+  name          String?
+  bio           String?
+  avatar        String?
+  role          UserRole  @default(AUTHOR)
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  posts         Post[]
+  comments      Comment[]
+  subscriptions    Subscription[] @relation()
+  createdSubs     Subscription[] @relation("creator")
+  subscribedSubs  Subscription[] @relation("subscriber")
+  transactions    Transaction[]
+  likes           Like[]
+  shares          Share[]
+  pageViews       PageView[]
+  userEngagements UserEngagement[]
+  demographicData DemographicData[]
+  followers Follower[] @relation("Followers")
+  following Follower[] @relation("Following")
+  interactions    UserInteraction[]
+  recommendedTags String[]
+  jwtToken        String?
+  googleId        String? @unique
+  twoFactorSecret String?
+  twoFactorEnabled Boolean @default(false)
+}
+
+enum UserRole {
+  ADMIN
+  EDITOR
+  AUTHOR
+}
+
+model Post {
+  id          String    @id @default(cuid())
+  title       String
+  content     String
+  published   Boolean   @default(false)
+  premium     Boolean   @default(false)
+  author      User      @relation(fields: [authorId], references: [id])
+  authorId    String
+  categories  Category[]
+  seoMetadata     SeoMetadata[]
+  contentAccess   ContentAccess[]
+  shares          Share[]
+  userInteractions UserInteraction[]
+  pageViews       PageView[]
+  userEngagements UserEngagement[]
+  tags        Tag[]
+  comments    Comment[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+}
+
+model Category {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  posts       Post[]
+  createdAt   DateTime  @default(now())
+}
+
+model Tag {
+  id          String    @id @default(cuid())
+  name        String    @unique
+  posts       Post[]
+  createdAt   DateTime  @default(now())
+}
+
+model Comment {
+  id          String    @id @default(cuid())
+  content     String
+  postId      String
+  parentId    String?
+  post        Post      @relation(fields: [postId], references: [id])
+  authorId    String
+  author      User      @relation(fields: [authorId], references: [id])
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  likes       Like[]
+  replies     Comment[] @relation("CommentReplies")
+  parent      Comment? @relation("CommentReplies", fields: [parentId], references: [id])
+}
+
+model Follower {
+  id          Int       @id @default(autoincrement())
+  followerId  String    // Changed to String to match User.id
+  followingId String    // Changed to String to match User.id
+  createdAt   DateTime  @default(now())
+  follower    User      @relation("Followers", fields: [followerId], references: [id])
+  following   User      @relation("Following", fields: [followingId], references: [id])
+
+  @@unique([followerId, followingId])
+}
+
+model Subscription {
+  id            Int       @id @default(autoincrement())
+  userId        String    // Changed to String
+  planId        Int
+  creatorId     String    // Changed to String
+  subscriberId  String    // Changed to String
+  status        String
+  currentPeriodStart DateTime
+  currentPeriodEnd   DateTime
+  cancelAtPeriodEnd  Boolean  @default(false)
+  stripeCustomerId   String?
+  stripeSubscriptionId String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+  user           User     @relation(fields: [userId], references: [id])
+  plan           Plan     @relation(fields: [planId], references: [id])
+  creator        User     @relation("creator", fields: [creatorId], references: [id])
+  subscriber     User     @relation("subscriber", fields: [subscriberId], references: [id])
+}
+
+model Plan {
+  id          Int       @id @default(autoincrement())
+  name        String
+  description String
+  price       Float
+  contentAccess ContentAccess[]
+  interval    String
+  features    String[]
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+  subscriptions Subscription[]
+}
+
+model SeoMetadata {
+  id          Int      @id @default(autoincrement())
+  postId      String   @unique  // Changed to String
+  title       String
+  description String
+  keywords    String?
+  canonical   String?
+  ogImage     String?
+  post        Post     @relation(fields: [postId], references: [id])
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+}
+
+model Transaction {
+  id          Int       @id @default(autoincrement())
+  userId      String    // Changed to String
+  amount      Float
+  type        String
+  status      String
+  stripePaymentId String?
+  createdAt   DateTime @default(now())
+  user        User      @relation(fields: [userId], references: [id])
+}
+
+model ContentAccess {
+  id        Int      @id @default(autoincrement())
+  postId    String   // Changed to String
+  planId    Int
+  post      Post     @relation(fields: [postId], references: [id])
+  plan      Plan     @relation(fields: [planId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([postId, planId])
+}
+
+model Like {
+  id        Int      @id @default(autoincrement())
+  userId    String   // Changed to String
+  commentId String   // Changed to String
+  user      User     @relation(fields: [userId], references: [id])
+  comment   Comment  @relation(fields: [commentId], references: [id])
+  createdAt DateTime @default(now())
+
+  @@unique([userId, commentId])
+}
+
+model Share {
+  id        Int      @id @default(autoincrement())
+  postId    String   // Changed to String
+  userId    String   // Changed to String
+  platform  String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id])
+  user      User     @relation(fields: [userId], references: [id])
+}
+
+model UserInteraction {
+  id        Int      @id @default(autoincrement())
+  userId    String   // Changed to String
+  postId    String   // Changed to String
+  type      String
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id])
+  post      Post     @relation(fields: [postId], references: [id])
+}
+
+model PageView {
+  id         Int      @id @default(autoincrement())
+  url        String
+  postId     String?  // Changed to String?
+  userId     String?  // Changed to String?
+  sessionId  String
+  ipAddress  String
+  userAgent  String
+  referer    String?
+  duration   Int
+  createdAt  DateTime @default(now())
+  post       Post?    @relation(fields: [postId], references: [id])
+  user       User?    @relation(fields: [userId], references: [id])
+}
+
+model UserEngagement {
+  id        Int      @id @default(autoincrement())
+  postId    String   // Changed to String
+  userId    String?  // Changed to String?
+  type      String
+  createdAt DateTime @default(now())
+  post      Post     @relation(fields: [postId], references: [id])
+  user      User?    @relation(fields: [userId], references: [id])
+}
+
+model DemographicData {
+  id        Int      @id @default(autoincrement())
+  userId    String   // Changed to String
+  country   String?
+  city      String?
+  age       Int?
+  gender    String?
+  interests String[]
+  user      User     @relation(fields: [userId], references: [id])
+}
