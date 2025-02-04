@@ -13,6 +13,9 @@
     "resolveJsonModule": true,
     "sourceMap": true
   },
+  "paths": {
+    "@prisma/client": ["./node_modules/@prisma/client"]
+  },
   "include": ["**/*.ts"],
   "exclude": ["node_modules", "dist"]
 }

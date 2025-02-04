@@ -1,6 +1,6 @@
-import { buffer } from 'micro';
 import Stripe from 'stripe';
-import { prisma } from '../../../lib/prisma';
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/src/lib/prisma';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
   apiVersion: '2023-10-16',
@@ -8,26 +8,26 @@ const stripe = new Stripe(process.env.STRIPE_SECRET_KEY!, {
 
 const webhookSecret = process.env.STRIPE_WEBHOOK_SECRET!;
 
-export const config = {
-  api: {
-    bodyParser: false,
-  },
-};
+export const dynamic = 'force-dynamic'; // Recommended for webhooks
 
-export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).end('Method Not Allowed');
-  }
-
-  const buf = await buffer(req);
-  const sig = req.headers['stripe-signature']!;
+export async function POST(req: NextRequest) {
+  const buf = await req.arrayBuffer(); // Get raw body as ArrayBuffer
+  const sig = req.headers.get('stripe-signature')!;
 
   let event: Stripe.Event;
 
   try {
-    event = stripe.webhooks.constructEvent(buf, sig, webhookSecret);
+    // Convert ArrayBuffer to Buffer for Stripe
+    event = stripe.webhooks.constructEvent(
+      Buffer.from(buf), 
+      sig,
+      webhookSecret
+    );
   } catch (err) {
-    return res.status(400).send(`Webhook Error: ${err.message}`);
+    return NextResponse.json(
+      { message: `Webhook Error: ${err.message}` },
+      { status: 400 }
+    );
   }
 
   try {
@@ -70,9 +70,9 @@ export default async function handler(req, res) {
         break;
     }
 
-    res.json({ received: true });
+    return NextResponse.json({ received: true }, { status: 200 });
   } catch (error) {
     console.error('Error processing webhook:', error);
-    res.status(500).json({ error: 'Webhook handler failed' });
+    return NextResponse.json({ message: 'Webhook handler failed' }, { status: 500 });
   }
 }

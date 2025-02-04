@@ -1,4 +1,4 @@
-import apiClient from './apiClient';
+import apiClient from '@/src/lib/apiClient';
 
 interface RegisterData {
   email: string;

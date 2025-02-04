@@ -37,6 +37,9 @@ model User {
   interactions    UserInteraction[]
   recommendedTags String[]
   jwtToken        String?
+  sessions          Session[]
+  resetToken        String?
+  resetTokenExpires DateTime?
   googleId        String? @unique
   twoFactorSecret String?
   twoFactorEnabled Boolean @default(false)
@@ -49,24 +52,24 @@ enum UserRole {
 }
 
 model Post {
-  id          String    @id @default(cuid())
-  title       String
-  content     String
-  published   Boolean   @default(false)
-  premium     Boolean   @default(false)
-  author      User      @relation(fields: [authorId], references: [id])
-  authorId    String
-  categories  Category[]
-  seoMetadata     SeoMetadata[]
-  contentAccess   ContentAccess[]
-  shares          Share[]
-  userInteractions UserInteraction[]
-  pageViews       PageView[]
-  userEngagements UserEngagement[]
-  tags        Tag[]
-  comments    Comment[]
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id                 String           @id @default(cuid())
+  title              String
+  content            String
+  published          Boolean          @default(false)
+  premium            Boolean          @default(false)
+  author             User             @relation(fields: [authorId], references: [id])
+  authorId           String
+  categories         Category[]
+  seoMetadata        SeoMetadata[]
+  contentAccess      ContentAccess[]
+  shares             Share[]
+  userInteractions   UserInteraction[]
+  pageViews          PageView[]
+  userEngagements    UserEngagement[]
+  tags               Tag[]
+  comments           Comment[]
+  createdAt          DateTime         @default(now())
+  updatedAt          DateTime         @updatedAt
 }
 
 model Category {
@@ -242,4 +245,29 @@ model DemographicData {
   gender    String?
   interests String[]
   user      User     @relation(fields: [userId], references: [id])
+}
+
+model Session {
+  id         String    @id @default(cuid())
+  token      String    @unique
+  userId     String
+  user       User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  userAgent  String?
+  ip         String?
+  deviceType String?
+  lastActive DateTime  @default(now())
+  expiresAt  DateTime
+  createdAt  DateTime  @default(now())
+}
+
+model FailedAttempt {
+  id        String   @id @default(cuid())
+  ip        String
+  action    String   // login, reset-password, etc.
+  count     Int      @default(1)
+  lastTry   DateTime @default(now())
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([ip, action])
 }

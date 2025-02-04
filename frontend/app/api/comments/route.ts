@@ -1,88 +1,89 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '../../../lib/prisma';
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/src/lib/prisma';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
+import { authOptions } from '@/src/lib/auth';
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  const session = await getServerSession(req, res, authOptions);
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
   
   if (!session) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  if (req.method === 'POST') {
-    try {
-      const { content, postId, parentId } = req.body;
-      
-      const comment = await prisma.comment.create({
-        data: {
-          content,
-          postId,
-          userId: session.user.id,
-          parentId: parentId || null,
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              image: true,
-            },
-          },
-          likes: true,
-          replies: {
-            include: {
-              user: true,
-              likes: true,
-            },
+  try {
+    const body = await req.json();
+    const { content, postId, parentId } = body;
+    
+    const comment = await prisma.comment.create({
+      data: {
+        content,
+        postId,
+        userId: session.user.id,
+        parentId: parentId || null,
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
           },
         },
-      });
-      
-      return res.status(201).json(comment);
-    } catch (error) {
-      return res.status(500).json({ error: 'Error creating comment' });
-    }
+        likes: true,
+        replies: {
+          include: {
+            user: true,
+            likes: true,
+          },
+        },
+      },
+    });
+    
+    return NextResponse.json(comment, { status: 201 });
+  } catch (error) {
+    return NextResponse.json({ error: 'Error creating comment' }, { status: 500 });
+  }
+}
+
+export async function GET(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  if (req.method === 'GET') {
-    try {
-      const { postId } = req.query;
-      
-      const comments = await prisma.comment.findMany({
-        where: {
-          postId: parseInt(postId as string),
-          parentId: null, // Get only top-level comments
-        },
-        include: {
-          user: {
-            select: {
-              id: true,
-              name: true,
-              image: true,
-            },
-          },
-          likes: true,
-          replies: {
-            include: {
-              user: true,
-              likes: true,
-            },
+  try {
+    const { searchParams } = new URL(req.url);
+    const postId = searchParams.get('postId');
+    
+    const comments = await prisma.comment.findMany({
+      where: {
+        postId: parseInt(postId || '0'),
+        parentId: null, // Get only top-level comments
+      },
+      include: {
+        user: {
+          select: {
+            id: true,
+            name: true,
+            image: true,
           },
         },
-        orderBy: {
-          createdAt: 'desc',
+        likes: true,
+        replies: {
+          include: {
+            user: true,
+            likes: true,
+          },
         },
-      });
-      
-      return res.status(200).json(comments);
-    } catch (error) {
-      return res.status(500).json({ error: 'Error fetching comments' });
-    }
+      },
+      orderBy: {
+        createdAt: 'desc',
+      },
+    });
+    
+    return NextResponse.json(comments, { status: 200 });
+  } catch (error) {
+    return NextResponse.json({ error: 'Error fetching comments' }, { status: 500 });
   }
-
-  return res.status(405).json({ error: 'Method not allowed' });
 }

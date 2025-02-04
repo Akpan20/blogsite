@@ -1,15 +1,18 @@
-import { Card } from '@/components/ui/card';
-import { Metadata } from 'next';
-import DashboardMetrics from '@/components/analytics/Dashboard';
+'use client';
 
-export const metadata: Metadata = {
-  title: 'Dashboard | Blog Platform',
-  description: 'View your blog analytics and metrics'
-};
+import dynamic from 'next/dynamic';
+import { Card } from '@/src/components/ui/card';
+import Dashboard from '@/src/components/analytics/Dashboard';
+
+// Client-side only import for Recharts
+const DashboardMetrics = dynamic(
+  () => import('@/src/components/analytics/Dashboard'),
+  { ssr: false }
+);
 
 export default function DashboardPage() {
   return (
-    <div className="p-6">
+    <>
       <h1 className="text-3xl font-bold mb-6">Dashboard Overview</h1>
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         <Card>
@@ -19,6 +22,6 @@ export default function DashboardPage() {
           </div>
         </Card>
       </div>
-    </div>
+    </>
   );
 }

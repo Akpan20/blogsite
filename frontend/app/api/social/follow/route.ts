@@ -1,58 +1,60 @@
-import { NextApiRequest, NextApiResponse } from 'next';
-import { prisma } from '../../../lib/prisma';
+import { NextRequest, NextResponse } from 'next/server';
+import { prisma } from '@/src/lib/prisma';
 import { getServerSession } from 'next-auth/next';
-import { authOptions } from '../auth/[...nextauth]';
+import { authOptions } from '@/src/lib/auth';
 
-export default async function handler(
-  req: NextApiRequest,
-  res: NextApiResponse
-) {
-  const session = await getServerSession(req, res, authOptions);
+export async function POST(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  
   if (!session) {
-    return res.status(401).json({ error: 'Unauthorized' });
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
   }
 
-  if (req.method === 'POST') {
-    try {
-      const { followingId } = req.body;
-      const followerId = session.user.id;
+  try {
+    const body = await req.json();
+    const { followingId } = body;
+    const followerId = session.user.id;
 
-      if (followerId === followingId) {
-        return res.status(400).json({ error: 'Cannot follow yourself' });
-      }
+    if (followerId === followingId) {
+      return NextResponse.json({ error: 'Cannot follow yourself' }, { status: 400 });
+    }
 
-      const follow = await prisma.follow.create({
-        data: {
+    const follow = await prisma.follow.create({
+      data: {
+        followerId,
+        followingId,
+      },
+    });
+
+    return NextResponse.json(follow, { status: 201 });
+  } catch (error) {
+    return NextResponse.json({ error: 'Error following user' }, { status: 500 });
+  }
+}
+
+export async function DELETE(req: NextRequest) {
+  const session = await getServerSession(authOptions);
+  
+  if (!session) {
+    return NextResponse.json({ error: 'Unauthorized' }, { status: 401 });
+  }
+
+  try {
+    const { searchParams } = new URL(req.url);
+    const followingId = searchParams.get('followingId');
+    const followerId = session.user.id;
+
+    await prisma.follow.delete({
+      where: {
+        followerId_followingId: {
           followerId,
-          followingId,
+          followingId: parseInt(followingId || '0'),
         },
-      });
+      },
+    });
 
-      return res.status(201).json(follow);
-    } catch (error) {
-      return res.status(500).json({ error: 'Error following user' });
-    }
+    return NextResponse.json({ message: 'Unfollowed successfully' }, { status: 200 });
+  } catch (error) {
+    return NextResponse.json({ error: 'Error unfollowing user' }, { status: 500 });
   }
-
-  if (req.method === 'DELETE') {
-    try {
-      const { followingId } = req.query;
-      const followerId = session.user.id;
-
-      await prisma.follow.delete({
-        where: {
-          followerId_followingId: {
-            followerId,
-            followingId: parseInt(followingId as string),
-          },
-        },
-      });
-
-      return res.status(200).json({ message: 'Unfollowed successfully' });
-    } catch (error) {
-      return res.status(500).json({ error: 'Error unfollowing user' });
-    }
-  }
-
-  return res.status(405).json({ error: 'Method not allowed' });
 }
