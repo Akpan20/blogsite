@@ -1,0 +1,71 @@
+[90m= [39m[34;4mIlluminate\Database\Eloquent\Collection[39;24m {#294
+    [34mall[39m: [
+      [34;4mApp\Models\Post[39;24m {#6294
+        [34m⚠[39m: [34;4mSymfony\Component\VarDumper\Exception\ThrowingCasterException[39;24m {#6304
+          #[33mmessage[39m: "[32mUnexpected Illuminate\Routing\Exceptions\UrlGenerationException thrown from a caster: Missing required parameter for [Route: posts.show] [URI: api/posts/{post}] [Missing parameter: post].[39m",
+        },
+        +[1mincrementing[22m: [36mtrue[39m,
+        +[1mpreventsLazyLoading[22m: [36mfalse[39m,
+        +[1mexists[22m: [36mtrue[39m,
+        +[1mwasRecentlyCreated[22m: [36mfalse[39m,
+        +[1mtimestamps[22m: [36mtrue[39m,
+        +[1musesUniqueIds[22m: [36mfalse[39m,
+      },
+      [34;4mApp\Models\Post[39;24m {#6295
+        [34m⚠[39m: [34;4mSymfony\Component\VarDumper\Exception\ThrowingCasterException[39;24m {#6307
+          #[33mmessage[39m: "[32mUnexpected Illuminate\Routing\Exceptions\UrlGenerationException thrown from a caster: Missing required parameter for [Route: posts.show] [URI: api/posts/{post}] [Missing parameter: post].[39m",
+        },
+        +[1mincrementing[22m: [36mtrue[39m,
+        +[1mpreventsLazyLoading[22m: [36mfalse[39m,
+        +[1mexists[22m: [36mtrue[39m,
+        +[1mwasRecentlyCreated[22m: [36mfalse[39m,
+        +[1mtimestamps[22m: [36mtrue[39m,
+        +[1musesUniqueIds[22m: [36mfalse[39m,
+      },
+      [34;4mApp\Models\Post[39;24m {#6296
+        [34m⚠[39m: [34;4mSymfony\Component\VarDumper\Exception\ThrowingCasterException[39;24m {#6310
+          #[33mmessage[39m: "[32mUnexpected Illuminate\Routing\Exceptions\UrlGenerationException thrown from a caster: Missing required parameter for [Route: posts.show] [URI: api/posts/{post}] [Missing parameter: post].[39m",
+        },
+        +[1mincrementing[22m: [36mtrue[39m,
+        +[1mpreventsLazyLoading[22m: [36mfalse[39m,
+        +[1mexists[22m: [36mtrue[39m,
+        +[1mwasRecentlyCreated[22m: [36mfalse[39m,
+        +[1mtimestamps[22m: [36mtrue[39m,
+        +[1musesUniqueIds[22m: [36mfalse[39m,
+      },
+      [34;4mApp\Models\Post[39;24m {#6297
+        [34m⚠[39m: [34;4mSymfony\Component\VarDumper\Exception\ThrowingCasterException[39;24m {#6313
+          #[33mmessage[39m: "[32mUnexpected Illuminate\Routing\Exceptions\UrlGenerationException thrown from a caster: Missing required parameter for [Route: posts.show] [URI: api/posts/{post}] [Missing parameter: post].[39m",
+        },
+        +[1mincrementing[22m: [36mtrue[39m,
+        +[1mpreventsLazyLoading[22m: [36mfalse[39m,
+        +[1mexists[22m: [36mtrue[39m,
+        +[1mwasRecentlyCreated[22m: [36mfalse[39m,
+        +[1mtimestamps[22m: [36mtrue[39m,
+        +[1musesUniqueIds[22m: [36mfalse[39m,
+      },
+      [34;4mApp\Models\Post[39;24m {#6298
+        [34m⚠[39m: [34;4mSymfony\Component\VarDumper\Exception\ThrowingCasterException[39;24m {#6316
+          #[33mmessage[39m: "[32mUnexpected Illuminate\Routing\Exceptions\UrlGenerationException thrown from a caster: Missing required parameter for [Route: posts.show] [URI: api/posts/{post}] [Missing parameter: post].[39m",
+        },
+        +[1mincrementing[22m: [36mtrue[39m,
+        +[1mpreventsLazyLoading[22m: [36mfalse[39m,
+        +[1mexists[22m: [36mtrue[39m,
+        +[1mwasRecentlyCreated[22m: [36mfalse[39m,
+        +[1mtimestamps[22m: [36mtrue[39m,
+        +[1musesUniqueIds[22m: [36mfalse[39m,
+      },
+      [34;4mApp\Models\Post[39;24m {#6299
+        [34m⚠[39m: [34;4mSymfony\Component\VarDumper\Exception\ThrowingCasterException[39;24m {#6319
+          #[33mmessage[39m: "[32mUnexpected Illuminate\Routing\Exceptions\UrlGenerationException thrown from a caster: Missing required parameter for [Route: posts.show] [URI: api/posts/{post}] [Missing parameter: post].[39m",
+        },
+        +[1mincrementing[22m: [36mtrue[39m,
+        +[1mpreventsLazyLoading[22m: [36mfalse[39m,
+        +[1mexists[22m: [36mtrue[39m,
+        +[1mwasRecentlyCreated[22m: [36mfalse[39m,
+        +[1mtimestamps[22m: [36mtrue[39m,
+        +[1musesUniqueIds[22m: [36mfalse[39m,
+      },
+    ],
+  }
+
