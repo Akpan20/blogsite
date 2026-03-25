@@ -2,78 +2,55 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use MongoDB\Laravel\Eloquent\Model;
+use MongoDB\Laravel\Relations\BelongsTo;
 
-/**
- * @property-read \App\Models\UserSubscription|null $subscription
- * @property-read \App\Models\User|null $user
- * @method static \Illuminate\Database\Eloquent\Builder<static>|PaymentTransaction newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|PaymentTransaction newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|PaymentTransaction query()
- * @mixin \Eloquent
- */
 class PaymentTransaction extends Model
 {
-    use HasFactory;
+    protected $connection = 'mongodb';
+    protected $collection = 'payment_transactions';
 
     protected $fillable = [
-        'user_id',
-        'user_subscription_id',
-        'reference',
-        'amount',
-        'currency',
-        'status',
-        'payment_method',
-        'gateway',
-        'gateway_response',
-        'paid_at',
+        'user_id', 'user_subscription_id', 'reference', 'amount',
+        'currency', 'status', 'payment_method', 'gateway',
+        'gateway_response', 'paid_at',
     ];
 
     protected $casts = [
-        'amount' => 'decimal:2',
+        'amount'           => 'decimal:2',
         'gateway_response' => 'array',
-        'paid_at' => 'datetime',
+        'paid_at'          => 'datetime',
+        'created_at'       => 'datetime',
+        'updated_at'       => 'datetime',
     ];
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function subscription()
+    public function subscription(): BelongsTo
     {
         return $this->belongsTo(UserSubscription::class, 'user_subscription_id');
     }
 
-    public function isSuccessful(): bool
-    {
-        return $this->status === 'success';
-    }
+    public function isSuccessful(): bool { return $this->status === 'success'; }
+    public function isPending(): bool    { return $this->status === 'pending'; }
+    public function isFailed(): bool     { return $this->status === 'failed'; }
 
-    public function isPending(): bool
-    {
-        return $this->status === 'pending';
-    }
-
-    public function isFailed(): bool
-    {
-        return $this->status === 'failed';
-    }
-
-    public function markAsSuccessful(array $gatewayResponse = [])
+    public function markAsSuccessful(array $gatewayResponse = []): void
     {
         $this->update([
-            'status' => 'success',
+            'status'           => 'success',
             'gateway_response' => $gatewayResponse,
-            'paid_at' => now(),
+            'paid_at'          => now(),
         ]);
     }
 
-    public function markAsFailed(array $gatewayResponse = [])
+    public function markAsFailed(array $gatewayResponse = []): void
     {
         $this->update([
-            'status' => 'failed',
+            'status'           => 'failed',
             'gateway_response' => $gatewayResponse,
         ]);
     }

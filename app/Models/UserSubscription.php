@@ -3,22 +3,17 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use MongoDB\Laravel\Eloquent\Model;                     // <-- Change base class
+use MongoDB\Laravel\Relations\BelongsTo;                // <-- Use MongoDB relationships
+use MongoDB\Laravel\Relations\HasMany;
 use Carbon\Carbon;
 
-/**
- * @property-read \App\Models\SubscriptionPlan|null $plan
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\PaymentTransaction> $transactions
- * @property-read int|null $transactions_count
- * @property-read \App\Models\User|null $user
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSubscription newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSubscription newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|UserSubscription query()
- * @mixin \Eloquent
- */
 class UserSubscription extends Model
 {
     use HasFactory;
+
+    // Optional: set collection name (defaults to 'user_subscriptions')
+    // protected $collection = 'user_subscriptions';
 
     protected $fillable = [
         'user_id',
@@ -34,25 +29,25 @@ class UserSubscription extends Model
     ];
 
     protected $casts = [
-        'amount_paid' => 'decimal:2',
-        'starts_at' => 'datetime',
-        'expires_at' => 'datetime',
-        'cancelled_at' => 'datetime',
-        'auto_renew' => 'boolean',
+        'amount_paid' => 'float',                        // Use float for monetary values
+        'starts_at'   => 'datetime',
+        'expires_at'  => 'datetime',
+        'cancelled_at'=> 'datetime',
+        'auto_renew'  => 'boolean',
         'payment_metadata' => 'array',
     ];
 
-    public function user()
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
-    public function plan()
+    public function plan(): BelongsTo
     {
         return $this->belongsTo(SubscriptionPlan::class, 'subscription_plan_id');
     }
 
-    public function transactions()
+    public function transactions(): HasMany
     {
         return $this->hasMany(PaymentTransaction::class);
     }
@@ -99,8 +94,8 @@ class UserSubscription extends Model
 
         $newExpiryDate = match($this->plan->billing_period) {
             'monthly' => $this->expires_at->addMonth(),
-            'yearly' => $this->expires_at->addYear(),
-            default => null,
+            'yearly'  => $this->expires_at->addYear(),
+            default   => null,
         };
 
         $this->update([

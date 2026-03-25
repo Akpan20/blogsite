@@ -2,38 +2,30 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsTo;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use MongoDB\Laravel\Eloquent\Model;
+use MongoDB\Laravel\Relations\BelongsTo;
+use MongoDB\Laravel\Relations\BelongsToMany;
 use Illuminate\Support\Str;
 
 class Series extends Model
 {
-    use HasFactory;
+    protected $connection = 'mongodb';
+    protected $collection = 'series';
 
     protected $fillable = [
-        'title',
-        'slug',
-        'description',
-        'cover_image',
-        'user_id',
-        'is_published',
-        'is_featured',
-        'posts_count',
-        'meta_title',
-        'meta_description',
+        'title', 'slug', 'description', 'cover_image', 'user_id',
+        'is_published', 'is_featured', 'posts_count',
+        'meta_title', 'meta_description',
     ];
 
     protected $casts = [
         'is_published' => 'boolean',
-        'is_featured' => 'boolean',
-        'posts_count' => 'integer',
+        'is_featured'  => 'boolean',
+        'posts_count'  => 'integer',
     ];
 
     protected $appends = ['url'];
 
-    // Relationships
     public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
@@ -43,17 +35,14 @@ class Series extends Model
     {
         return $this->belongsToMany(Post::class, 'post_series')
             ->withPivot('order')
-            ->withTimestamps()
-            ->orderByPivot('order');
+            ->withTimestamps();
     }
 
-    // Accessors
     public function getUrlAttribute(): string
     {
         return route('series.show', $this->slug);
     }
 
-    // Scopes
     public function scopePublished($query)
     {
         return $query->where('is_published', true);
@@ -69,20 +58,9 @@ class Series extends Model
         return $query->where('user_id', $userId);
     }
 
-    public function scopeWithPublishedPosts($query)
+    public function addPost(Post $post, ?int $order = null): void
     {
-        return $query->with(['posts' => function ($q) {
-            $q->published()->orderByPivot('order');
-        }]);
-    }
-
-    // Methods
-    public function addPost(Post $post, int $order = null): void
-    {
-        if ($order === null) {
-            $order = $this->posts()->count() + 1;
-        }
-
+        $order ??= $this->posts()->count() + 1;
         $this->posts()->attach($post->id, ['order' => $order]);
         $this->increment('posts_count');
     }
@@ -91,76 +69,53 @@ class Series extends Model
     {
         $this->posts()->detach($post->id);
         $this->decrement('posts_count');
-        
-        // Reorder remaining posts
         $this->reorderPosts();
     }
 
     public function reorderPosts(): void
     {
-        $posts = $this->posts()->orderByPivot('order')->get();
-        
+        $posts = $this->posts()->orderBy('pivot_order')->get();
         foreach ($posts as $index => $post) {
-            $this->posts()->updateExistingPivot($post->id, [
-                'order' => $index + 1
-            ]);
+            $this->posts()->updateExistingPivot($post->id, ['order' => $index + 1]);
         }
     }
 
     public function getNextPost(Post $currentPost): ?Post
     {
-        $currentOrder = $this->posts()
-            ->where('post_id', $currentPost->id)
-            ->first()
-            ?->pivot
-            ?->order;
-
-        if (!$currentOrder) {
-            return null;
-        }
+        $pivot = $this->posts()->where('post_id', $currentPost->id)->first()?->pivot;
+        if (!$pivot) return null;
 
         return $this->posts()
-            ->wherePivot('order', '>', $currentOrder)
-            ->published()
+            ->wherePivot('order', '>', $pivot->order)
+            ->where('status', 'published')
+            ->orderBy('pivot_order')
             ->first();
     }
 
     public function getPreviousPost(Post $currentPost): ?Post
     {
-        $currentOrder = $this->posts()
-            ->where('post_id', $currentPost->id)
-            ->first()
-            ?->pivot
-            ?->order;
-
-        if (!$currentOrder) {
-            return null;
-        }
+        $pivot = $this->posts()->where('post_id', $currentPost->id)->first()?->pivot;
+        if (!$pivot) return null;
 
         return $this->posts()
-            ->wherePivot('order', '<', $currentOrder)
-            ->published()
-            ->orderByPivot('order', 'desc')
+            ->wherePivot('order', '<', $pivot->order)
+            ->where('status', 'published')
+            ->orderByDesc('pivot_order')
             ->first();
     }
 
     public function getProgress(Post $currentPost): array
     {
-        $totalPosts = $this->posts()->published()->count();
-        $currentOrder = $this->posts()
-            ->where('post_id', $currentPost->id)
-            ->first()
-            ?->pivot
-            ?->order ?? 0;
+        $total        = $this->posts()->where('status', 'published')->count();
+        $currentOrder = $this->posts()->where('post_id', $currentPost->id)->first()?->pivot?->order ?? 0;
 
         return [
-            'current' => $currentOrder,
-            'total' => $totalPosts,
-            'percentage' => $totalPosts > 0 ? round(($currentOrder / $totalPosts) * 100) : 0,
+            'current'    => $currentOrder,
+            'total'      => $total,
+            'percentage' => $total > 0 ? round(($currentOrder / $total) * 100) : 0,
         ];
     }
 
-    // Auto-generate slug and update count
     protected static function boot()
     {
         parent::boot();

@@ -2,46 +2,35 @@
 
 namespace App\Models;
 
-use Illuminate\Database\Eloquent\Model;
+use MongoDB\Laravel\Eloquent\Model;           // Change base class
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 
 /**
- * @property int $id
- * @property int $user_id
+ * @property string $_id
+ * @property string $user_id
  * @property string $plan
  * @property string|null $paystack_subscription_code
  * @property string|null $paystack_authorization_code
  * @property string $reference
- * @property numeric $amount
+ * @property float $amount
  * @property string|null $starts_at
  * @property string|null $ends_at
  * @property string $status
  * @property \Illuminate\Support\Carbon|null $created_at
  * @property \Illuminate\Support\Carbon|null $updated_at
  * @property-read \App\Models\User $user
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscription newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscription newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscription query()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscription whereAmount($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscription whereCreatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscription whereEndsAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscription whereId($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscription wherePaystackAuthorizationCode($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscription wherePaystackSubscriptionCode($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscription wherePlan($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscription whereReference($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscription whereStartsAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscription whereStatus($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscription whereUpdatedAt($value)
- * @method static \Illuminate\Database\Eloquent\Builder<static>|Subscription whereUserId($value)
- * @mixin \Eloquent
  */
 class Subscription extends Model
 {
+    // Optional: specify the MongoDB collection name (defaults to 'subscriptions')
+    // protected $collection = 'subscriptions';
+
     protected $fillable = [
         'user_id',
         'plan',
         'paystack_subscription_code',
-        'paystack_email_token',
+        'paystack_authorization_code',
+        'paystack_email_token',       // added if you need it
         'reference',
         'amount',
         'starts_at',
@@ -49,16 +38,30 @@ class Subscription extends Model
         'status',
     ];
 
-    protected $dates = [
-        'starts_at',
-        'ends_at',
+    /**
+     * The attributes that should be cast.
+     *
+     * @var array<string, string>
+     */
+    protected $casts = [
+        'amount'    => 'float',
+        'starts_at' => 'datetime',
+        'ends_at'   => 'datetime',
+        'created_at' => 'datetime',
+        'updated_at' => 'datetime',
     ];
 
-    public function user()
+    /**
+     * Get the user that owns the subscription.
+     */
+    public function user(): BelongsTo
     {
         return $this->belongsTo(User::class);
     }
 
+    /**
+     * Determine if the subscription is currently active.
+     */
     public function isActive(): bool
     {
         return $this->status === 'active'

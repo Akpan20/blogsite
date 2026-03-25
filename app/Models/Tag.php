@@ -3,13 +3,16 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
-use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use MongoDB\Laravel\Eloquent\Model;                     // <-- Change base class
+use MongoDB\Laravel\Relations\BelongsToMany;            // <-- Use MongoDB relationship
 use Illuminate\Support\Str;
 
 class Tag extends Model
 {
     use HasFactory;
+
+    // Optional: set the collection name (defaults to 'tags')
+    // protected $collection = 'tags';
 
     protected $fillable = [
         'name',
@@ -18,7 +21,9 @@ class Tag extends Model
         'color',
     ];
 
-    // Relationships
+    /**
+     * The posts that belong to this tag.
+     */
     public function posts(): BelongsToMany
     {
         return $this->belongsToMany(Post::class, 'post_tag')

@@ -3,23 +3,32 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use Illuminate\Database\Eloquent\Model;
+use MongoDB\Laravel\Eloquent\Model;               // <-- Change base class
+use MongoDB\Laravel\Relations\HasMany;            // <-- Use MongoDB relationships
 
 /**
- * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\UserSubscription> $activeSubscriptions
- * @property-read int|null $active_subscriptions_count
- * @property-read string $billing_cycle
- * @property-read string $formatted_price
+ * @property string $_id
+ * @property string $name
+ * @property string $slug
+ * @property string|null $description
+ * @property float $price
+ * @property string $billing_period
+ * @property array $features
+ * @property int $max_premium_posts
+ * @property bool $is_active
+ * @property bool $is_featured
+ * @property int $sort_order
  * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\UserSubscription> $subscriptions
- * @property-read int|null $subscriptions_count
- * @method static \Illuminate\Database\Eloquent\Builder<static>|SubscriptionPlan newModelQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|SubscriptionPlan newQuery()
- * @method static \Illuminate\Database\Eloquent\Builder<static>|SubscriptionPlan query()
- * @mixin \Eloquent
+ * @property-read \Illuminate\Database\Eloquent\Collection<int, \App\Models\UserSubscription> $activeSubscriptions
+ * @property-read string $formatted_price
+ * @property-read string $billing_cycle
  */
 class SubscriptionPlan extends Model
 {
     use HasFactory;
+
+    // Optional: specify collection name (defaults to 'subscription_plans')
+    // protected $collection = 'subscription_plans';
 
     protected $fillable = [
         'name',
@@ -35,18 +44,25 @@ class SubscriptionPlan extends Model
     ];
 
     protected $casts = [
-        'features' => 'array',
-        'price' => 'decimal:2',
+        'features' => 'array',           // MongoDB stores arrays natively
+        'price' => 'float',              // Use float for monetary values
         'is_active' => 'boolean',
         'is_featured' => 'boolean',
+        'sort_order' => 'integer',
     ];
 
-    public function subscriptions()
+    /**
+     * Get the user subscriptions for this plan.
+     */
+    public function subscriptions(): HasMany
     {
         return $this->hasMany(UserSubscription::class);
     }
 
-    public function activeSubscriptions()
+    /**
+     * Get the active subscriptions for this plan.
+     */
+    public function activeSubscriptions(): HasMany
     {
         return $this->hasMany(UserSubscription::class)
             ->where('payment_status', 'completed')
@@ -54,23 +70,32 @@ class SubscriptionPlan extends Model
             ->whereNull('cancelled_at');
     }
 
+    /**
+     * Determine if this plan is free.
+     */
     public function isFree(): bool
     {
         return $this->price == 0;
     }
 
+    /**
+     * Accessor for formatted price.
+     */
     public function getFormattedPriceAttribute(): string
     {
-        return '₦' . number_format($this->price, 2);
+        return '₦' . number_format((float) $this->price, 2);
     }
 
+    /**
+     * Accessor for billing cycle text.
+     */
     public function getBillingCycleAttribute(): string
     {
-        return match($this->billing_period) {
+        return match ($this->billing_period) {
             'monthly' => 'per month',
-            'yearly' => 'per year',
-            'lifetime' => 'one-time',
-            default => '',
+            'yearly'  => 'per year',
+            'lifetime'=> 'one-time',
+            default   => '',
         };
     }
 }

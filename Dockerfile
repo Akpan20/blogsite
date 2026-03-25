@@ -3,13 +3,17 @@ FROM php:8.3-cli
 # System dependencies
 RUN apt-get update && apt-get install -y \
     git curl zip unzip libzip-dev libpng-dev \
-    libonig-dev libxml2-dev \
+    libonig-dev libxml2-dev pkg-config libssl-dev \
     && apt-get clean
 
 # PHP extensions
-RUN docker-php-ext-install pdo zip mbstring exif pcntl bcmath
+RUN docker-php-ext-install zip mbstring exif pcntl bcmath
 
-# Node.js 20 (avoid using the outdated apt nodejs)
+# MongoDB PHP extension
+RUN pecl install mongodb \
+    && docker-php-ext-enable mongodb
+
+# Node.js 20
 RUN curl -fsSL https://deb.nodesource.com/setup_20.x | bash - \
     && apt-get install -y nodejs
 
@@ -18,7 +22,6 @@ COPY --from=composer:latest /usr/bin/composer /usr/bin/composer
 
 WORKDIR /var/www
 
-# Copy files
 COPY . .
 
 # PHP dependencies
@@ -43,4 +46,3 @@ CMD php artisan config:clear \
     && php artisan view:cache \
     && php artisan migrate --force \
     && php artisan serve --host=0.0.0.0 --port=${PORT:-8000}
-
