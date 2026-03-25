@@ -4,9 +4,12 @@ FROM php:8.3-cli
 RUN apt-get update && apt-get install -y \
     git curl zip unzip libzip-dev libpng-dev \
     libonig-dev libxml2-dev pkg-config libssl-dev \
-    ca-certificates \
+    ca-certificates openssl \
     && apt-get clean \
     && update-ca-certificates --fresh
+
+# Optional: install mongodb-clients for testing (remove later)
+RUN apt-get install -y mongodb-clients
 
 # PHP extensions
 RUN docker-php-ext-install zip mbstring exif pcntl bcmath
