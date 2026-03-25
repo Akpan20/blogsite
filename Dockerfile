@@ -1,10 +1,12 @@
 FROM php:8.3-cli
 
-# System dependencies
+# System dependencies – add ca-certificates
 RUN apt-get update && apt-get install -y \
     git curl zip unzip libzip-dev libpng-dev \
     libonig-dev libxml2-dev pkg-config libssl-dev \
-    && apt-get clean
+    ca-certificates \
+    && apt-get clean \
+    && update-ca-certificates --fresh
 
 # PHP extensions
 RUN docker-php-ext-install zip mbstring exif pcntl bcmath
@@ -24,27 +26,21 @@ WORKDIR /var/www
 
 COPY . .
 
-# Set dummy environment variables to pass Laravel config validation during build
+# Set dummy env vars for build (as before)
 ENV MONGODB_URI="mongodb://localhost:27017"
 ENV APP_KEY="base64:DummyKeyForBuildOnly="
 
-# PHP dependencies
+# Install dependencies
 RUN composer install --no-dev --optimize-autoloader
 
-# Node dependencies & build
 RUN npm ci --legacy-peer-deps && npm run build
 
 # Storage permissions
-RUN mkdir -p storage/logs \
-    storage/framework/cache \
-    storage/framework/sessions \
-    storage/framework/views \
-    bootstrap/cache \
+RUN mkdir -p storage/logs storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
 EXPOSE 8000
 
-# Optimize and start the server
 CMD php artisan config:cache \
     && php artisan route:cache \
     && php artisan view:cache \
