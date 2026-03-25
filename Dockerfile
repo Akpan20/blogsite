@@ -3,7 +3,7 @@ FROM php:8.3-cli
 # Install system dependencies
 RUN apt-get update && apt-get install -y \
     git curl zip unzip libzip-dev libpng-dev libonig-dev \
-    libxml2-dev nodejs npm \
+    libxml2-dev libsqlite3-dev nodejs npm \
     && docker-php-ext-install pdo pdo_sqlite zip mbstring exif pcntl bcmath
 
 # Install Composer
