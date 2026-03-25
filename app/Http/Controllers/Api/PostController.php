@@ -7,6 +7,7 @@ use App\Models\Post;
 use Illuminate\Http\Request;
 use Illuminate\Http\JsonResponse;
 use Illuminate\Support\Facades\Auth;
+use Illuminate\Support\Facades\DB;
 
 class PostController extends Controller
 {
@@ -19,7 +20,17 @@ class PostController extends Controller
 
         \Log::info('Current Auth ID: ' . (Auth::id() ?? 'null'));
 
-        // Add filters if needed
+        // Add search filter
+        if ($request->filled('search')) {
+            $search = $request->search;
+            $query->where(function ($q) use ($search) {
+                $q->where('title', 'like', "%{$search}%")
+                ->orWhere('content', 'like', "%{$search}%")
+                ->orWhere('excerpt', 'like', "%{$search}%");
+            });
+        }
+
+        // Existing status filter
         if ($request->filled('status')) {
             $query->where('status', $request->status);
         }
@@ -123,6 +134,80 @@ class PostController extends Controller
             'meta_description' => $post->meta_description,
             'og_image' => $post->og_image,
         ]);
+    }
+
+    public function featured(Request $request)
+    {
+        $limit = $request->get('limit', 3);
+
+        $posts = Post::query()
+            ->where('status', 'published')
+            ->where('is_featured', true)
+            ->with('category')
+            ->orderBy('featured_order')
+            ->limit($limit)
+            ->get();
+
+        // Return only the fields needed for public display
+        return response()->json($posts->map(function ($post) {
+            return [
+                'id' => $post->id,
+                'title' => $post->title,
+                'slug' => $post->slug,
+                'excerpt' => $post->excerpt,
+                'featured_image' => $post->featured_image,
+                'category' => $post->category ? [
+                    'id' => $post->category->id,
+                    'name' => $post->category->name,
+                    'color' => $post->category->color,
+                ] : null,
+            ];
+        }));
+    }
+
+    /**
+     * Reorder featured posts
+     */
+    public function reorderFeatured(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'posts' => 'required|array|min:1',
+            'posts.*.id' => 'required|integer|exists:posts,id',
+            'posts.*.featured_order' => 'required|integer|min:1',
+        ]);
+
+        try {
+            DB::beginTransaction();
+
+            foreach ($validated['posts'] as $item) {
+                Post::where('id', $item['id'])
+                    ->update([
+                        'featured_order' => $item['featured_order'],
+                        // Optional: enforce is_featured = true
+                        'is_featured' => true,
+                    ]);
+            }
+
+            DB::commit();
+
+            return response()->json([
+                'message' => 'Featured order updated successfully',
+                'updated_count' => count($validated['posts']),
+            ], 200);
+        } catch (\Exception $e) {
+            DB::rollBack();
+
+            \Log::error('Reorder featured posts failed', [
+                'error' => $e->getMessage(),
+                'trace' => $e->getTraceAsString(),
+                'payload' => $request->all(),
+            ]);
+
+            return response()->json([
+                'message' => 'Failed to update featured order',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
     }
 
     /**
@@ -308,10 +393,15 @@ class PostController extends Controller
     /**
      * Get related posts
      */
-    public function related(Post $post, Request $request): JsonResponse
+    public function related(Post $post)
     {
-        $limit = $request->input('limit', 5);
-        $related = $post->getRelatedPosts($limit);
+        $related = Post::where('category_id', $post->category_id)
+            ->where('id', '!=', $post->id)
+            ->where('status', 'published')
+            ->with(['author', 'category'])
+            ->latest()
+            ->take(3)
+            ->get();
 
         return response()->json($related);
     }

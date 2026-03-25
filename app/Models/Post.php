@@ -168,6 +168,14 @@ class Post extends Model
         };
     }
 
+    public function getFirstImageAttribute()
+    {
+        // Use regex to find the first <img> tag src in the content
+        preg_match('/<img.+src=["\']([^" text=\']+)["\']/', $this->content, $matches);
+        
+        return $matches[1] ?? asset('default-og-image.jpg');
+    }
+
     // ============================================
     // SCOPES
     // ============================================

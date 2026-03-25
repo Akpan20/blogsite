@@ -100,7 +100,7 @@ export default function SeriesProgressBar({
   // Detailed variant
   if (variant === 'detailed') {
     return (
-      <div className="bg-gradient-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
+      <div className="bg-linear-to-br from-blue-50 to-indigo-50 rounded-xl p-6 border border-blue-200">
         {/* Series Header */}
         <div className="mb-4">
           <div className="flex items-start justify-between">
@@ -143,7 +143,7 @@ export default function SeriesProgressBar({
           
           <div className="w-full bg-blue-200 rounded-full h-3 overflow-hidden">
             <div
-              className="bg-gradient-to-r from-blue-500 to-indigo-600 h-3 rounded-full transition-all duration-500 shadow-sm"
+              className="bg-linear-to-r from-blue-500 to-indigo-600 h-3 rounded-full transition-all duration-500 shadow-sm"
               style={{ width: `${progress.percentage}%` }}
             />
           </div>
@@ -156,7 +156,7 @@ export default function SeriesProgressBar({
             <div>
               {previousPost ? (
                 <Link
-                  to={`/posts/${previousPost.slug}`}
+                  to={`/content/${previousPost.slug}`}
                   className="block p-4 bg-white rounded-lg hover:shadow-md transition group"
                 >
                   <div className="text-xs text-gray-500 mb-1 flex items-center gap-1">
@@ -181,7 +181,7 @@ export default function SeriesProgressBar({
             <div>
               {nextPost ? (
                 <Link
-                  to={`/posts/${nextPost.slug}`}
+                  to={`/content/${nextPost.slug}`}
                   className="block p-4 bg-white rounded-lg hover:shadow-md transition group"
                 >
                   <div className="text-xs text-gray-500 mb-1 flex items-center justify-end gap-1">
@@ -253,7 +253,7 @@ export default function SeriesProgressBar({
         <div className="flex justify-between gap-2">
           {previousPost ? (
             <Link
-              to={`/posts/${previousPost.slug}`}
+              to={`/content/${previousPost.slug}`}
               className="flex-1 px-3 py-2 bg-white text-blue-900 rounded text-sm font-medium hover:bg-blue-100 transition truncate"
             >
               ← Previous
@@ -264,7 +264,7 @@ export default function SeriesProgressBar({
 
           {nextPost && (
             <Link
-              to={`/posts/${nextPost.slug}`}
+              to={`/content/${nextPost.slug}`}
               className="flex-1 px-3 py-2 bg-blue-600 text-white rounded text-sm font-medium hover:bg-blue-700 transition truncate text-right"
             >
               Next →

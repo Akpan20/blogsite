@@ -7,9 +7,9 @@ interface User {
   name: string;
   email: string;
   username?: string;
-  email_verified_at?: string;
-  created_at?: string;
-  updated_at?: string;
+  role?: string;
+  is_admin?: boolean;
+  avatar?: string;
 }
 
 interface AuthContextType {
@@ -26,181 +26,97 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 export function AuthProvider({ children }: { children: ReactNode }) {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
-
   const location = useLocation();
-  
-  // PUBLIC ROUTES - pages that don't require authentication
-  const isPublicPage = [
-    '/',           // ← ADD THIS! Welcome page is public
-    '/login', 
-    '/register',
-    '/about',
-    '/guidelines',
-    '/privacy',
-    '/terms',
-    '/cookies',
-    '/contact',
-    '/api-docs',
-  ].includes(location.pathname) || 
-  location.pathname.startsWith('/posts/') ||
-  location.pathname.startsWith('/search') ||
-  location.pathname.startsWith('/profile/') ||
-  location.pathname.startsWith('/leaderboard') ||
-  location.pathname.startsWith('/categories') ||
-  location.pathname.startsWith('/series') ||
-  location.pathname.startsWith('/subscription/plans') ||
-  location.pathname.startsWith('/subscription/verify');
 
-  // ---------- Restore token from localStorage on app start ----------
+  // ---------- Restore token & Setup Interceptor ----------
   useEffect(() => {
     const token = localStorage.getItem('token');
     if (token) {
       api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
     }
-  }, []); // runs once when provider mounts
 
-  // ---------- Global request interceptor to always attach token ----------
-  useEffect(() => {
     const interceptor = api.interceptors.request.use((config) => {
-      const token = localStorage.getItem('token');
-      if (token) {
-        config.headers.Authorization = `Bearer ${token}`;
+      const activeToken = localStorage.getItem('token');
+      if (activeToken) {
+        config.headers.Authorization = `Bearer ${activeToken}`;
       }
       return config;
     });
 
-    // Clean up interceptor on unmount
-    return () => {
-      api.interceptors.request.eject(interceptor);
-    };
+    checkAuth(); // Initial check
+
+    return () => api.interceptors.request.eject(interceptor);
   }, []);
 
   // ---------- Verify authentication ----------
   const checkAuth = async () => {
-    try {
-      console.log('Checking auth status...');
-      const res = await api.get('/user');
+    const token = localStorage.getItem('token');
+    if (!token) {
+      setIsLoading(false);
+      return;
+    }
 
-      if (res.data?.id) {
-        console.log('User authenticated:', res.data);
-        setUser(res.data);
-      } else {
-        console.log('No user data in response');
-        setUser(null);
-      }
+    try {
+      const res = await api.get('/user');
+      setUser(res.data);
     } catch (error: any) {
-      console.error('Auth check failed:', error.response?.status, error.response?.data);
-      setUser(null);
-      // Token is invalid – remove it
+      console.error('Auth check failed:', error.response?.status);
       localStorage.removeItem('token');
       delete api.defaults.headers.common['Authorization'];
+      setUser(null);
     } finally {
       setIsLoading(false);
     }
   };
 
-  // ---------- Initial auth check on mount ----------
-  useEffect(() => {
-    // Only check auth if we have a token
-    const token = localStorage.getItem('token');
-    
-    if (token) {
-      // If we have a token, verify it's still valid
-      checkAuth();
-    } else if (isPublicPage) {
-      // No token and on public page = just set loading to false
-      setIsLoading(false);
-    } else {
-      // No token and on protected page = let ProtectedRoute handle the redirect
-      setIsLoading(false);
-    }
-  }, []); // empty dependency = runs once on mount
-
-  // ---------- Update loading state when navigating ----------
-  useEffect(() => {
-    // If navigating to a public page and we're still loading, stop loading
-    if (isPublicPage && isLoading) {
-      setIsLoading(false);
-    }
-  }, [location.pathname, isPublicPage]);
-
   // ---------- Login ----------
   const login = async (email: string, password: string) => {
     try {
-      console.log('📡 Logging in...');
       await api.get('/sanctum/csrf-cookie');
-
       const response = await api.post('/login', { email, password });
-      console.log('✅ Login response:', response.status, response.data);
-
-      const { user, token } = response.data;
+      const { user: userData, token } = response.data;
 
       if (token) {
-        console.log('🔑 Saving token...');
         localStorage.setItem('token', token);
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       }
-
-      setUser(user);
-      console.log('✅ Login successful');
-    } catch (error: any) {
-      console.error('❌ Login failed:', error.response?.status, error.response?.data);
-      setUser(null);
+      setUser(userData);
+    } catch (error) {
       localStorage.removeItem('token');
-      delete api.defaults.headers.common['Authorization'];
       throw error;
     }
   };
 
   // ---------- Register ----------
-  const register = async (
-    name: string,
-    email: string,
-    password: string,
-    passwordConfirmation: string
-  ) => {
+  const register = async (name: string, email: string, password: string, password_confirmation: string) => {
     try {
-      console.log('📡 Attempting registration...');
-      const response = await api.post('/register', {
-        name,
-        email,
-        password,
-        password_confirmation: passwordConfirmation,
-      });
-
-      console.log('✅ Registration API response:', response.data);
-      const { user, token } = response.data;
+      const response = await api.post('/register', { name, email, password, password_confirmation });
+      const { user: userData, token } = response.data;
 
       if (token) {
-        console.log('🔑 Saving token...');
         localStorage.setItem('token', token);
         api.defaults.headers.common['Authorization'] = `Bearer ${token}`;
       }
-
-      setUser(user);
-      console.log('✅ User registered and authenticated');
-    } catch (error: any) {
-      console.error('❌ Registration failed:', error.response?.status, error.response?.data);
-      setUser(null);
+      setUser(userData);
+    } catch (error) {
       localStorage.removeItem('token');
-      delete api.defaults.headers.common['Authorization'];
       throw error;
     }
   };
 
   // ---------- Logout ----------
   const logout = async () => {
-    setIsLoading(true);
+    localStorage.removeItem('token');
+    delete api.defaults.headers.common['Authorization'];
+    setUser(null);
+
     try {
-      await api.post('/logout', {});
-    } catch (err: any) {
-      console.error('Logout error:', err);
-    } finally {
-      setUser(null);
-      localStorage.removeItem('token');
-      delete api.defaults.headers.common['Authorization'];
-      setIsLoading(false);
+      await api.post('/logout');
+    } catch (err) {
+      console.warn('Backend logout failed, but local session cleared', err);
     }
+
+    window.location.replace('/');
   };
 
   const value: AuthContextType = {

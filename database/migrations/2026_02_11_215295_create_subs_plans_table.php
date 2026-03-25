@@ -10,13 +10,14 @@ return new class extends Migration
     {
         Schema::create('subscription_plans', function (Blueprint $table) {
             $table->id();
-            $table->string('name'); // Free, Premium, Pro
+            $table->string('name');
             $table->string('slug')->unique();
             $table->text('description')->nullable();
             $table->decimal('price', 10, 2)->default(0);
             $table->enum('billing_period', ['monthly', 'yearly', 'lifetime'])->default('monthly');
-            $table->json('features')->nullable(); // Array of features
-            $table->integer('max_premium_posts')->nullable(); // null = unlimited
+            $table->string('paystack_plan_code')->nullable();
+            $table->json('features')->nullable();
+            $table->integer('max_premium_posts')->nullable();
             $table->boolean('is_active')->default(true);
             $table->boolean('is_featured')->default(false);
             $table->integer('sort_order')->default(0);
@@ -28,7 +29,7 @@ return new class extends Migration
             $table->foreignId('user_id')->constrained()->onDelete('cascade');
             $table->foreignId('subscription_plan_id')->constrained()->onDelete('cascade');
             $table->string('payment_reference')->unique()->nullable();
-            $table->string('payment_status')->default('pending'); // pending, completed, failed, cancelled
+            $table->string('payment_status')->default('pending');
             $table->decimal('amount_paid', 10, 2);
             $table->timestamp('starts_at');
             $table->timestamp('expires_at')->nullable();
@@ -36,7 +37,7 @@ return new class extends Migration
             $table->boolean('auto_renew')->default(true);
             $table->json('payment_metadata')->nullable();
             $table->timestamps();
-            
+
             $table->index(['user_id', 'expires_at']);
         });
 
@@ -47,27 +48,17 @@ return new class extends Migration
             $table->string('reference')->unique();
             $table->decimal('amount', 10, 2);
             $table->string('currency', 3)->default('NGN');
-            $table->string('status'); // pending, success, failed
-            $table->string('payment_method')->nullable(); // card, bank_transfer, etc.
+            $table->string('status');
+            $table->string('payment_method')->nullable();
             $table->string('gateway')->default('paystack');
             $table->json('gateway_response')->nullable();
             $table->timestamp('paid_at')->nullable();
             $table->timestamps();
         });
-
-        // Add premium flag to posts
-        Schema::table('posts', function (Blueprint $table) {
-            $table->boolean('is_premium')->default(false)->after('published_at');
-            $table->enum('premium_tier', ['free', 'premium', 'pro'])->default('free')->after('is_premium');
-        });
     }
 
     public function down(): void
     {
-        Schema::table('posts', function (Blueprint $table) {
-            $table->dropColumn(['is_premium', 'premium_tier']);
-        });
-        
         Schema::dropIfExists('payment_transactions');
         Schema::dropIfExists('user_subscriptions');
         Schema::dropIfExists('subscription_plans');

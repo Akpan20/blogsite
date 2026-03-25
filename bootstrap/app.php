@@ -27,6 +27,25 @@ return Application::configure(basePath: dirname(__DIR__))
         $middleware->throttleApi();
     })
     ->withExceptions(function (Exceptions $exceptions): void {
-        //
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, \Illuminate\Http\Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json(['message' => 'Unauthenticated.'], 401);
+            }
+        });
     })
+
+    ->withMiddleware(function (Middleware $middleware): void {
+        $middleware->api(prepend: [
+            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+        ]);
+
+        $middleware->alias([
+            'premium' => \App\Http\Middleware\CheckPremiumAccess::class,
+            'admin'   => \App\Http\Middleware\CheckAdminAccess::class,
+            'auth'    => \App\Http\Middleware\Authenticate::class,
+        ]);
+
+        $middleware->throttleApi();
+    })
+    
     ->create();

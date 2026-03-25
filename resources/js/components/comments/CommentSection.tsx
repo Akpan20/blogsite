@@ -2,9 +2,12 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../ui/card';
 import { Button } from '../ui/button';
 import { Textarea } from '../ui/textarea';
+import { Input } from '../ui/input';
 import { CommentItem } from './CommentItem';
 import { Comment } from '@/types';
 import api from '@/lib/api';
+import { useAuth } from '@/contexts/AuthContext';
+import { toast } from 'sonner';
 import Echo from 'laravel-echo';
 
 interface CommentSectionProps {
@@ -13,303 +16,396 @@ interface CommentSectionProps {
 }
 
 export const CommentSection: React.FC<CommentSectionProps> = ({ postId, echo }) => {
+  const { user } = useAuth();
+
   const [comments, setComments] = useState<Comment[]>([]);
   const [newComment, setNewComment] = useState('');
+  const [guestName, setGuestName] = useState('');
+  const [guestEmail, setGuestEmail] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
   // Fetch comments
   useEffect(() => {
     fetchComments();
   }, [postId]);
 
-  // Subscribe to real-time updates
+  const fetchComments = async () => {
+    try {
+      setIsLoading(true);
+      setError(null);
+      const res = await api.get(`/posts/${postId}/comments`);
+      setComments(res.data.data || res.data || []);
+    } catch (err: any) {
+      console.error('Failed to fetch comments:', err);
+      setError('Could not load comments. Please try again later.');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  // Real-time updates via Echo
   useEffect(() => {
     if (!echo) return;
 
     const channel = echo.channel(`post.${postId}`);
 
-    // Listen for new comments
     channel.listen('.comment.posted', (event: { comment: Comment }) => {
-      setComments(prev => {
+      setComments((prev) => {
         if (event.comment.parent_id) {
-          // It's a reply - add it to the parent comment's replies
-          return prev.map(comment => {
-            if (comment.id === event.comment.parent_id) {
-              return {
-                ...comment,
-                replies: [...(comment.replies || []), event.comment],
-                replies_count: comment.replies_count + 1,
-              };
-            }
-            return comment;
-          });
-        } else {
-          // It's a root comment
-          return [event.comment, ...prev];
+          return prev.map((c) =>
+            c.id === event.comment.parent_id
+              ? {
+                  ...c,
+                  replies: [...(c.replies || []), event.comment],
+                  replies_count: (c.replies_count || 0) + 1,
+                }
+              : c
+          );
         }
+        return [event.comment, ...prev];
       });
+      toast.info('New comment added!');
     });
 
-    // Listen for comment updates
     channel.listen('.comment.updated', (event: { comment: Comment }) => {
-      setComments(prev => 
-        prev.map(comment => {
-          if (comment.id === event.comment.id) {
-            return { ...comment, ...event.comment };
-          }
-          if (comment.replies) {
+      setComments((prev) =>
+        prev.map((c) => {
+          if (c.id === event.comment.id) return { ...c, ...event.comment };
+          if (c.replies) {
             return {
-              ...comment,
-              replies: comment.replies.map(reply =>
-                reply.id === event.comment.id ? { ...reply, ...event.comment } : reply
+              ...c,
+              replies: c.replies.map((r) =>
+                r.id === event.comment.id ? { ...r, ...event.comment } : r
               ),
             };
           }
-          return comment;
+          return c;
         })
       );
     });
 
-    // Listen for comment deletions
     channel.listen('.comment.deleted', (event: { comment_id: number }) => {
-      setComments(prev => 
-        prev.filter(comment => {
-          if (comment.id === event.comment_id) return false;
-          if (comment.replies) {
-            comment.replies = comment.replies.filter(reply => reply.id !== event.comment_id);
-            comment.replies_count = comment.replies.length;
+      setComments((prev) =>
+        prev.filter((c) => {
+          if (c.id === event.comment_id) return false;
+          if (c.replies) {
+            c.replies = c.replies.filter((r) => r.id !== event.comment_id);
+            c.replies_count = c.replies.length;
           }
           return true;
         })
       );
     });
 
-    // Listen for reaction updates
-    channel.listen('.comment.reaction.updated', (event: {
-      comment_id: number;
-      reactions_count: Record<string, number>;
-      user_reaction: string | null;
-    }) => {
-      setComments(prev =>
-        prev.map(comment => {
-          if (comment.id === event.comment_id) {
-            return {
-              ...comment,
-              reactions_count: event.reactions_count,
-            };
-          }
-          if (comment.replies) {
-            return {
-              ...comment,
-              replies: comment.replies.map(reply =>
-                reply.id === event.comment_id
-                  ? { ...reply, reactions_count: event.reactions_count }
-                  : reply
-              ),
-            };
-          }
-          return comment;
-        })
-      );
-    });
+    channel.listen(
+      '.comment.reaction.updated',
+      (event: {
+        comment_id: number;
+        reactions_count: Record<string, number>;
+        user_reaction: string | null;
+      }) => {
+        setComments((prev) =>
+          prev.map((c) => {
+            if (c.id === event.comment_id) {
+              return { ...c, reactions_count: event.reactions_count };
+            }
+            if (c.replies) {
+              return {
+                ...c,
+                replies: c.replies.map((r) =>
+                  r.id === event.comment_id ? { ...r, reactions_count: event.reactions_count } : r
+                ),
+              };
+            }
+            return c;
+          })
+        );
+      }
+    );
 
     return () => {
       echo.leave(`post.${postId}`);
     };
   }, [echo, postId]);
 
-  const fetchComments = async () => {
-    try {
-      setIsLoading(true);
-      const response = await api.get(`/posts/${postId}/comments`);
-      setComments(response.data.data || response.data);
-    } catch (error) {
-      console.error('Error fetching comments:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!newComment.trim()) return;
 
-    try {
-      setIsSubmitting(true);
-      const response = await api.post(`/posts/${postId}/comments`, {
-        content: newComment,
-      });
+    setIsSubmitting(true);
+    setError(null);
 
-      // Add the comment to the list immediately (optimistic update)
-      setComments(prev => [response.data.comment, ...prev]);
+    try {
+      let response;
+
+      if (user) {
+        response = await api.post(`/posts/${postId}/comments`, {
+          content: newComment.trim(),
+        });
+      } else {
+        if (!guestName.trim()) {
+          setError('Please enter your name to comment as a guest.');
+          toast.error('Name is required for guest comments');
+          setIsSubmitting(false);
+          return;
+        }
+
+        response = await api.post('/comments/guest', {
+          post_id: postId,
+          content: newComment.trim(),
+          name: guestName.trim(),
+          email: guestEmail.trim() || null,
+        });
+      }
+
+      const newCommentData = response.data.comment || response.data;
+      setComments((prev) => [newCommentData, ...prev]);
+
       setNewComment('');
-    } catch (error) {
-      console.error('Error posting comment:', error);
-      alert('Failed to post comment. Please try again.');
+      if (!user) {
+        // Optional: keep name
+        // setGuestName('');
+        setGuestEmail('');
+      }
+
+      toast.success('Comment posted!');
+    } catch (err: any) {
+      console.error('Error posting comment:', err);
+      const msg =
+        err.response?.data?.message ||
+        (err.response?.status === 401
+          ? 'Authentication issue - please try logging in again.'
+          : 'Failed to post comment. Please try again.');
+      setError(msg);
+      toast.error(msg);
     } finally {
       setIsSubmitting(false);
     }
   };
 
   const handleReply = async (parentId: number, content: string) => {
-    try {
-      const response = await api.post(`/posts/${postId}/comments`, {
-        content,
-        parent_id: parentId,
-      });
+    if (!content.trim()) return;
 
-      // Update the parent comment with the new reply
-      setComments(prev =>
-        prev.map(comment => {
-          if (comment.id === parentId) {
-            return {
-              ...comment,
-              replies: [...(comment.replies || []), response.data.comment],
-              replies_count: comment.replies_count + 1,
-            };
-          }
-          return comment;
-        })
+    try {
+      let response;
+
+      if (user) {
+        response = await api.post(`/posts/${postId}/comments`, {
+          content: content.trim(),
+          parent_id: parentId,
+        });
+      } else {
+        if (!guestName.trim()) {
+          toast.error('Please enter your name to reply as a guest.');
+          return;
+        }
+        response = await api.post('/comments/guest', {
+          post_id: postId,
+          content: content.trim(),
+          name: guestName.trim(),
+          email: guestEmail.trim() || null,
+          parent_id: parentId,
+        });
+      }
+
+      const reply = response.data.comment || response.data;
+      setComments((prev) =>
+        prev.map((c) =>
+          c.id === parentId
+            ? {
+                ...c,
+                replies: [...(c.replies || []), reply],
+                replies_count: (c.replies_count || 0) + 1,
+              }
+            : c
+        )
       );
-    } catch (error) {
-      console.error('Error posting reply:', error);
-      throw error;
+
+      toast.success('Reply posted!');
+    } catch (err: any) {
+      toast.error('Failed to post reply');
+      console.error(err);
     }
   };
 
   const handleUpdate = async (commentId: number, content: string) => {
+    if (!content.trim()) return;
+
     try {
-      const response = await api.put(`/comments/${commentId}`, { content });
-      
-      setComments(prev =>
-        prev.map(comment => {
-          if (comment.id === commentId) {
-            return response.data.comment;
-          }
-          if (comment.replies) {
+      const res = await api.put(`/comments/${commentId}`, { content: content.trim() });
+
+      setComments((prev) =>
+        prev.map((c) => {
+          if (c.id === commentId) return res.data.comment || res.data;
+          if (c.replies) {
             return {
-              ...comment,
-              replies: comment.replies.map(reply =>
-                reply.id === commentId ? response.data.comment : reply
+              ...c,
+              replies: c.replies.map((r) =>
+                r.id === commentId ? res.data.comment || res.data : r
               ),
             };
           }
-          return comment;
+          return c;
         })
       );
-    } catch (error) {
-      console.error('Error updating comment:', error);
-      throw error;
+
+      toast.success('Comment updated');
+    } catch (err: any) {
+      toast.error('Failed to update comment');
+      console.error(err);
     }
   };
 
   const handleDelete = async (commentId: number) => {
-    if (!confirm('Are you sure you want to delete this comment?')) return;
+    if (!confirm('Delete this comment? This cannot be undone.')) return;
 
     try {
       await api.delete(`/comments/${commentId}`);
-      
-      setComments(prev =>
-        prev.filter(comment => {
-          if (comment.id === commentId) return false;
-          if (comment.replies) {
-            comment.replies = comment.replies.filter(reply => reply.id !== commentId);
-            comment.replies_count = comment.replies.length;
+
+      setComments((prev) =>
+        prev.filter((c) => {
+          if (c.id === commentId) return false;
+          if (c.replies) {
+            c.replies = c.replies.filter((r) => r.id !== commentId);
+            c.replies_count = c.replies.length;
           }
           return true;
         })
       );
-    } catch (error) {
-      console.error('Error deleting comment:', error);
-      alert('Failed to delete comment. Please try again.');
+
+      toast.success('Comment deleted');
+    } catch (err: any) {
+      toast.error('Failed to delete comment');
+      console.error(err);
     }
   };
 
   const handleReaction = async (commentId: number, reactionType: string) => {
     try {
-      const response = await api.post(`/comments/${commentId}/reactions`, {
-        type: reactionType,
-      });
+      const res = await api.post(`/comments/${commentId}/reactions`, { type: reactionType });
 
-      setComments(prev =>
-        prev.map(comment => {
-          if (comment.id === commentId) {
+      setComments((prev) =>
+        prev.map((c) => {
+          if (c.id === commentId) {
             return {
-              ...comment,
-              reactions_count: response.data.reactions_count,
-              user_reaction: response.data.user_reaction,
+              ...c,
+              reactions_count: res.data.reactions_count,
+              user_reaction: res.data.user_reaction,
             };
           }
-          if (comment.replies) {
+          if (c.replies) {
             return {
-              ...comment,
-              replies: comment.replies.map(reply =>
-                reply.id === commentId
+              ...c,
+              replies: c.replies.map((r) =>
+                r.id === commentId
                   ? {
-                      ...reply,
-                      reactions_count: response.data.reactions_count,
-                      user_reaction: response.data.user_reaction,
+                      ...r,
+                      reactions_count: res.data.reactions_count,
+                      user_reaction: res.data.user_reaction,
                     }
-                  : reply
+                  : r
               ),
             };
           }
-          return comment;
+          return c;
         })
       );
-    } catch (error) {
-      console.error('Error toggling reaction:', error);
+    } catch (err: any) {
+      toast.error('Failed to update reaction');
+      console.error(err);
     }
   };
 
   if (isLoading) {
     return (
-      <div className="flex justify-center items-center py-8">
-        <div className="text-gray-500">Loading comments...</div>
+      <div className="flex justify-center items-center py-12">
+        <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-blue-600 dark:border-blue-400"></div>
       </div>
     );
   }
 
   return (
-    <div className="space-y-6">
-      {/* Comment form */}
-      <Card className="p-4">
+    <div className="space-y-8">
+      {/* Comment Form */}
+      <Card className="p-6 shadow-sm border border-gray-200 dark:border-gray-700">
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 dark:bg-red-950/30 text-red-700 dark:text-red-400 rounded border border-red-200 dark:border-red-800">
+            {error}
+          </div>
+        )}
+
         <form onSubmit={handleSubmit}>
+          {!user && (
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-4">
+              <Input
+                value={guestName}
+                onChange={(e) => setGuestName(e.target.value)}
+                placeholder="Your name *"
+                required
+                className="w-full"
+              />
+              <Input
+                type="email"
+                value={guestEmail}
+                onChange={(e) => setGuestEmail(e.target.value)}
+                placeholder="Email (optional)"
+                className="w-full"
+              />
+            </div>
+          )}
+
           <Textarea
             value={newComment}
             onChange={(e) => setNewComment(e.target.value)}
             placeholder="Write a comment..."
-            className="mb-3"
-            rows={3}
+            className="min-h-100px mb-4 resize-y"
+            disabled={isSubmitting}
           />
-          <div className="flex justify-end">
-            <Button type="submit" disabled={isSubmitting || !newComment.trim()}>
+
+          <div className="flex flex-col sm:flex-row justify-between items-center gap-4">
+            {!user && (
+              <p className="text-sm text-gray-500 dark:text-gray-400 mr-auto">
+                Commenting as guest •{' '}
+                <a href="/login" className="text-blue-600 hover:underline">
+                  Sign in
+                </a>{' '}
+                for more features
+              </p>
+            )}
+            <Button
+              type="submit"
+              disabled={isSubmitting || !newComment.trim() || (!user && !guestName.trim())}
+              className="min-w-140px"
+            >
               {isSubmitting ? 'Posting...' : 'Post Comment'}
             </Button>
           </div>
         </form>
       </Card>
 
-      {/* Comments list */}
-      <div className="space-y-4">
-        {comments.length === 0 ? (
-          <Card className="p-8 text-center">
-            <p className="text-gray-500">No comments yet. Be the first to comment!</p>
-          </Card>
-        ) : (
-          comments.map(comment => (
+      {/* Comments List */}
+      {comments.length === 0 ? (
+        <Card className="p-10 text-center bg-gray-50 dark:bg-gray-900/30 border border-gray-200 dark:border-gray-700">
+          <p className="text-lg font-medium text-gray-700 dark:text-gray-300">No comments yet</p>
+          <p className="mt-2 text-gray-500 dark:text-gray-400">Be the first to share your thoughts!</p>
+        </Card>
+      ) : (
+        <div className="space-y-6">
+          {comments.map((comment) => (
             <CommentItem
               key={comment.id}
               comment={comment}
+              postId={postId}
               onReply={handleReply}
               onUpdate={handleUpdate}
               onDelete={handleDelete}
               onReaction={handleReaction}
             />
-          ))
-        )}
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 };

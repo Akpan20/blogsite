@@ -4,266 +4,202 @@ namespace Database\Seeders;
 
 use App\Models\Category;
 use Illuminate\Database\Seeder;
+use Illuminate\Support\Str;
 
 class CategorySeeder extends Seeder
 {
-    /**
-     * Run the database seeds.
-     */
     public function run(): void
     {
-        // Clear existing categories (optional - comment out if you want to keep existing)
-        // Category::query()->delete();
+        // Wipe existing categories cleanly
+        Category::query()->forceDelete();
+
+        $this->command->info('🌱 Seeding categories...');
 
         $order = 1;
 
-        // ============================================
+        // ════════════════════════════════════════
         // TECHNOLOGY & DIGITAL
-        // ============================================
-        $tech = Category::create([
-            'name' => 'Technology',
-            'description' => 'All things tech - from development to gadgets',
-            'color' => '#3B82F6',
-            'icon' => '💻',
-            'is_featured' => true,
-            'order' => $order++,
-        ]);
+        // ════════════════════════════════════════
+        $tech = $this->create('Technology', '💻', '#3B82F6', true, $order++);
+            $this->create('Web Development',      '🌐', '#06B6D4', false, 1,  $tech->id);
+            $this->create('Frontend Development', '⚛️', '#61DAFB', false, 2,  $tech->id);
+            $this->create('Backend Development',  '⚙️', '#10B981', false, 3,  $tech->id);
+            $this->create('Full Stack',           '🔧', '#8B5CF6', false, 4,  $tech->id);
+            $this->create('WordPress',            '📝', '#21759B', false, 5,  $tech->id);
+            $this->create('AI & Machine Learning','🤖', '#8B5CF6', false, 6,  $tech->id);
+            $this->create('Cybersecurity',        '🔒', '#EF4444', false, 7,  $tech->id);
+            $this->create('Cloud Computing',      '☁️', '#06B6D4', false, 8,  $tech->id);
+            $this->create('DevOps',               '⚙️', '#F97316', false, 9,  $tech->id);
+            $this->create('Data Science',         '📊', '#10B981', false, 10, $tech->id);
+            $this->create('Tech Reviews',         '⭐', '#FBBF24', false, 11, $tech->id);
+            $this->create('Gaming',               '🎮', '#A855F7', false, 12, $tech->id);
 
-        Category::create(['name' => 'Web Development', 'parent_id' => $tech->id, 'icon' => '🌐', 'color' => '#06B6D4', 'order' => 1]);
-        Category::create(['name' => 'Frontend Development', 'parent_id' => $tech->id, 'icon' => '⚛️', 'color' => '#61DAFB', 'order' => 2]);
-        Category::create(['name' => 'Backend Development', 'parent_id' => $tech->id, 'icon' => '⚙️', 'color' => '#10B981', 'order' => 3]);
-        Category::create(['name' => 'Full Stack', 'parent_id' => $tech->id, 'icon' => '🔧', 'color' => '#8B5CF6', 'order' => 4]);
-        Category::create(['name' => 'WordPress', 'parent_id' => $tech->id, 'icon' => '📝', 'color' => '#21759B', 'order' => 5]);
-        
-        $mobile = Category::create(['name' => 'Mobile Development', 'parent_id' => $tech->id, 'icon' => '📱', 'color' => '#EC4899', 'order' => 6]);
-        Category::create(['name' => 'iOS Development', 'parent_id' => $mobile->id, 'icon' => '🍎', 'color' => '#000000', 'order' => 1]);
-        Category::create(['name' => 'Android Development', 'parent_id' => $mobile->id, 'icon' => '🤖', 'color' => '#3DDC84', 'order' => 2]);
-        Category::create(['name' => 'Cross-Platform', 'parent_id' => $mobile->id, 'icon' => '🔄', 'color' => '#61DAFB', 'order' => 3]);
+            $mobile = $this->create('Mobile Development', '📱', '#EC4899', false, 13, $tech->id);
+                $this->create('iOS Development',    '🍎', '#000000', false, 1, $mobile->id);
+                $this->create('Android Development','🤖', '#3DDC84', false, 2, $mobile->id);
+                $this->create('Cross-Platform',     '🔄', '#61DAFB', false, 3, $mobile->id);
 
-        $programming = Category::create(['name' => 'Programming', 'parent_id' => $tech->id, 'icon' => '👨‍💻', 'color' => '#F59E0B', 'order' => 7]);
-        Category::create(['name' => 'Python', 'parent_id' => $programming->id, 'icon' => '🐍', 'color' => '#3776AB', 'order' => 1]);
-        Category::create(['name' => 'JavaScript', 'parent_id' => $programming->id, 'icon' => '⚡', 'color' => '#F7DF1E', 'order' => 2]);
-        Category::create(['name' => 'PHP', 'parent_id' => $programming->id, 'icon' => '🐘', 'color' => '#777BB4', 'order' => 3]);
-        Category::create(['name' => 'Java', 'parent_id' => $programming->id, 'icon' => '☕', 'color' => '#007396', 'order' => 4]);
+            $programming = $this->create('Programming', '👨‍💻', '#F59E0B', false, 14, $tech->id);
+                $this->create('Python',     '🐍', '#3776AB', false, 1, $programming->id);
+                $this->create('JavaScript', '⚡', '#F7DF1E', false, 2, $programming->id);
+                $this->create('PHP',        '🐘', '#777BB4', false, 3, $programming->id);
+                $this->create('Java',       '☕', '#007396', false, 4, $programming->id);
 
-        Category::create(['name' => 'AI & Machine Learning', 'parent_id' => $tech->id, 'icon' => '🤖', 'color' => '#8B5CF6', 'order' => 8]);
-        Category::create(['name' => 'Cybersecurity', 'parent_id' => $tech->id, 'icon' => '🔒', 'color' => '#EF4444', 'order' => 9]);
-        Category::create(['name' => 'Cloud Computing', 'parent_id' => $tech->id, 'icon' => '☁️', 'color' => '#06B6D4', 'order' => 10]);
-        Category::create(['name' => 'DevOps', 'parent_id' => $tech->id, 'icon' => '⚙️', 'color' => '#F97316', 'order' => 11]);
-        Category::create(['name' => 'Data Science', 'parent_id' => $tech->id, 'icon' => '📊', 'color' => '#10B981', 'order' => 12]);
-        Category::create(['name' => 'Tech Reviews', 'parent_id' => $tech->id, 'icon' => '⭐', 'color' => '#FBBF24', 'order' => 13]);
-        Category::create(['name' => 'Gaming', 'parent_id' => $tech->id, 'icon' => '🎮', 'color' => '#A855F7', 'order' => 14]);
-
-        // ============================================
+        // ════════════════════════════════════════
         // BUSINESS & FINANCE
-        // ============================================
-        $business = Category::create([
-            'name' => 'Business',
-            'description' => 'Business insights, entrepreneurship, and professional growth',
-            'color' => '#10B981',
-            'icon' => '💼',
-            'is_featured' => true,
-            'order' => $order++,
-        ]);
+        // ════════════════════════════════════════
+        $business = $this->create('Business', '💼', '#10B981', true, $order++);
+            $this->create('Entrepreneurship', '🚀', '#F97316', false, 1, $business->id);
+            $this->create('Startup Stories',  '💡', '#FBBF24', false, 2, $business->id);
+            $this->create('E-commerce',       '🛒', '#F59E0B', false, 3, $business->id);
+            $this->create('Productivity',     '✅', '#14B8A6', false, 4, $business->id);
+            $this->create('Leadership',       '👔', '#6366F1', false, 5, $business->id);
+            $this->create('Business Strategy','📊', '#8B5CF6', false, 6, $business->id);
+            $this->create('Remote Work',      '🏠', '#EC4899', false, 7, $business->id);
 
-        Category::create(['name' => 'Entrepreneurship', 'parent_id' => $business->id, 'icon' => '🚀', 'color' => '#F97316', 'order' => 1]);
-        Category::create(['name' => 'Startup Stories', 'parent_id' => $business->id, 'icon' => '💡', 'color' => '#FBBF24', 'order' => 2]);
-        
-        $marketing = Category::create(['name' => 'Marketing', 'parent_id' => $business->id, 'icon' => '📢', 'color' => '#06B6D4', 'order' => 3]);
-        Category::create(['name' => 'Digital Marketing', 'parent_id' => $marketing->id, 'icon' => '💻', 'color' => '#3B82F6', 'order' => 1]);
-        Category::create(['name' => 'Content Marketing', 'parent_id' => $marketing->id, 'icon' => '✍️', 'color' => '#8B5CF6', 'order' => 2]);
-        Category::create(['name' => 'SEO', 'parent_id' => $marketing->id, 'icon' => '🔍', 'color' => '#10B981', 'order' => 3]);
-        Category::create(['name' => 'Social Media Marketing', 'parent_id' => $marketing->id, 'icon' => '📱', 'color' => '#EC4899', 'order' => 4]);
+            $marketing = $this->create('Marketing', '📢', '#06B6D4', false, 8, $business->id);
+                $this->create('Digital Marketing',      '💻', '#3B82F6', false, 1, $marketing->id);
+                $this->create('Content Marketing',      '✍️', '#8B5CF6', false, 2, $marketing->id);
+                $this->create('SEO',                    '🔍', '#10B981', false, 3, $marketing->id);
+                $this->create('Social Media Marketing', '📱', '#EC4899', false, 4, $marketing->id);
 
-        $finance = Category::create(['name' => 'Finance', 'parent_id' => $business->id, 'icon' => '💰', 'color' => '#84CC16', 'order' => 4]);
-        Category::create(['name' => 'Personal Finance', 'parent_id' => $finance->id, 'icon' => '💳', 'color' => '#10B981', 'order' => 1]);
-        Category::create(['name' => 'Investing', 'parent_id' => $finance->id, 'icon' => '📈', 'color' => '#3B82F6', 'order' => 2]);
-        Category::create(['name' => 'Cryptocurrency', 'parent_id' => $finance->id, 'icon' => '₿', 'color' => '#F7931A', 'order' => 3]);
+            $finance = $this->create('Finance', '💰', '#84CC16', false, 9, $business->id);
+                $this->create('Personal Finance', '💳', '#10B981', false, 1, $finance->id);
+                $this->create('Investing',        '📈', '#3B82F6', false, 2, $finance->id);
+                $this->create('Cryptocurrency',   '₿',  '#F7931A', false, 3, $finance->id);
 
-        Category::create(['name' => 'E-commerce', 'parent_id' => $business->id, 'icon' => '🛒', 'color' => '#F59E0B', 'order' => 5]);
-        Category::create(['name' => 'Productivity', 'parent_id' => $business->id, 'icon' => '✅', 'color' => '#14B8A6', 'order' => 6]);
-        Category::create(['name' => 'Leadership', 'parent_id' => $business->id, 'icon' => '👔', 'color' => '#6366F1', 'order' => 7]);
-        Category::create(['name' => 'Business Strategy', 'parent_id' => $business->id, 'icon' => '📊', 'color' => '#8B5CF6', 'order' => 8]);
-        Category::create(['name' => 'Remote Work', 'parent_id' => $business->id, 'icon' => '🏠', 'color' => '#EC4899', 'order' => 9]);
-
-        // ============================================
+        // ════════════════════════════════════════
         // LIFESTYLE & PERSONAL
-        // ============================================
-        $lifestyle = Category::create([
-            'name' => 'Lifestyle',
-            'description' => 'Living well - health, fashion, and personal growth',
-            'color' => '#EC4899',
-            'icon' => '🌸',
-            'is_featured' => true,
-            'order' => $order++,
-        ]);
+        // ════════════════════════════════════════
+        $lifestyle = $this->create('Lifestyle', '🌸', '#EC4899', true, $order++);
+            $this->create('Fashion',             '👗', '#EC4899', false, 1, $lifestyle->id);
+            $this->create('Beauty',              '💄', '#F472B6', false, 2, $lifestyle->id);
+            $this->create('Parenting',           '👶', '#FBBF24', false, 3, $lifestyle->id);
+            $this->create('Relationships',       '💑', '#EF4444', false, 4, $lifestyle->id);
+            $this->create('Personal Development','🌱', '#14B8A6', false, 5, $lifestyle->id);
 
-        $health = Category::create(['name' => 'Health & Wellness', 'parent_id' => $lifestyle->id, 'icon' => '💪', 'color' => '#10B981', 'order' => 1]);
-        Category::create(['name' => 'Fitness', 'parent_id' => $health->id, 'icon' => '🏋️', 'color' => '#EF4444', 'order' => 1]);
-        Category::create(['name' => 'Nutrition', 'parent_id' => $health->id, 'icon' => '🥗', 'color' => '#84CC16', 'order' => 2]);
-        Category::create(['name' => 'Mental Health', 'parent_id' => $health->id, 'icon' => '🧠', 'color' => '#8B5CF6', 'order' => 3]);
-        Category::create(['name' => 'Yoga & Meditation', 'parent_id' => $health->id, 'icon' => '🧘', 'color' => '#A855F7', 'order' => 4]);
+            $health = $this->create('Health & Wellness', '💪', '#10B981', false, 6, $lifestyle->id);
+                $this->create('Fitness',          '🏋️', '#EF4444', false, 1, $health->id);
+                $this->create('Nutrition',        '🥗', '#84CC16', false, 2, $health->id);
+                $this->create('Mental Health',    '🧠', '#8B5CF6', false, 3, $health->id);
+                $this->create('Yoga & Meditation','🧘', '#A855F7', false, 4, $health->id);
 
-        Category::create(['name' => 'Fashion', 'parent_id' => $lifestyle->id, 'icon' => '👗', 'color' => '#EC4899', 'order' => 2]);
-        Category::create(['name' => 'Beauty', 'parent_id' => $lifestyle->id, 'icon' => '💄', 'color' => '#F472B6', 'order' => 3]);
-        
-        $travel = Category::create(['name' => 'Travel', 'parent_id' => $lifestyle->id, 'icon' => '✈️', 'color' => '#06B6D4', 'order' => 4]);
-        Category::create(['name' => 'Solo Travel', 'parent_id' => $travel->id, 'icon' => '🎒', 'color' => '#14B8A6', 'order' => 1]);
-        Category::create(['name' => 'Budget Travel', 'parent_id' => $travel->id, 'icon' => '💰', 'color' => '#84CC16', 'order' => 2]);
-        Category::create(['name' => 'Luxury Travel', 'parent_id' => $travel->id, 'icon' => '💎', 'color' => '#FBBF24', 'order' => 3]);
-        Category::create(['name' => 'Adventure Travel', 'parent_id' => $travel->id, 'icon' => '🏔️', 'color' => '#F97316', 'order' => 4]);
+            $travel = $this->create('Travel', '✈️', '#06B6D4', false, 7, $lifestyle->id);
+                $this->create('Solo Travel',      '🎒', '#14B8A6', false, 1, $travel->id);
+                $this->create('Budget Travel',    '💰', '#84CC16', false, 2, $travel->id);
+                $this->create('Luxury Travel',    '💎', '#FBBF24', false, 3, $travel->id);
+                $this->create('Adventure Travel', '🏔️', '#F97316', false, 4, $travel->id);
 
-        $food = Category::create(['name' => 'Food & Recipes', 'parent_id' => $lifestyle->id, 'icon' => '🍳', 'color' => '#F59E0B', 'order' => 5]);
-        Category::create(['name' => 'Vegan & Vegetarian', 'parent_id' => $food->id, 'icon' => '🥬', 'color' => '#84CC16', 'order' => 1]);
-        Category::create(['name' => 'Baking', 'parent_id' => $food->id, 'icon' => '🧁', 'color' => '#F472B6', 'order' => 2]);
-        Category::create(['name' => 'International Cuisine', 'parent_id' => $food->id, 'icon' => '🌍', 'color' => '#06B6D4', 'order' => 3]);
+            $food = $this->create('Food & Recipes', '🍳', '#F59E0B', false, 8, $lifestyle->id);
+                $this->create('Vegan & Vegetarian',  '🥬', '#84CC16', false, 1, $food->id);
+                $this->create('Baking',              '🧁', '#F472B6', false, 2, $food->id);
+                $this->create('International Cuisine','🌍', '#06B6D4', false, 3, $food->id);
 
-        $home = Category::create(['name' => 'Home & Garden', 'parent_id' => $lifestyle->id, 'icon' => '🏡', 'color' => '#84CC16', 'order' => 6]);
-        Category::create(['name' => 'Interior Design', 'parent_id' => $home->id, 'icon' => '🛋️', 'color' => '#A855F7', 'order' => 1]);
-        Category::create(['name' => 'DIY Projects', 'parent_id' => $home->id, 'icon' => '🔨', 'color' => '#F97316', 'order' => 2]);
-        Category::create(['name' => 'Gardening', 'parent_id' => $home->id, 'icon' => '🌱', 'color' => '#10B981', 'order' => 3]);
+            $home = $this->create('Home & Garden', '🏡', '#84CC16', false, 9, $lifestyle->id);
+                $this->create('Interior Design', '🛋️', '#A855F7', false, 1, $home->id);
+                $this->create('DIY Projects',    '🔨', '#F97316', false, 2, $home->id);
+                $this->create('Gardening',       '🌱', '#10B981', false, 3, $home->id);
 
-        Category::create(['name' => 'Parenting', 'parent_id' => $lifestyle->id, 'icon' => '👶', 'color' => '#FBBF24', 'order' => 7]);
-        Category::create(['name' => 'Relationships', 'parent_id' => $lifestyle->id, 'icon' => '💑', 'color' => '#EF4444', 'order' => 8]);
-        Category::create(['name' => 'Personal Development', 'parent_id' => $lifestyle->id, 'icon' => '🌱', 'color' => '#14B8A6', 'order' => 9]);
-
-        // ============================================
+        // ════════════════════════════════════════
         // CREATIVE & ARTS
-        // ============================================
-        $creative = Category::create([
-            'name' => 'Creative & Arts',
-            'description' => 'Creativity, design, and artistic expression',
-            'color' => '#A855F7',
-            'icon' => '🎨',
-            'is_featured' => true,
-            'order' => $order++,
-        ]);
+        // ════════════════════════════════════════
+        $creative = $this->create('Creative & Arts', '🎨', '#A855F7', true, $order++);
+            $this->create('Photography', '📷', '#3B82F6', false, 1, $creative->id);
+            $this->create('Writing',     '✍️', '#6366F1', false, 2, $creative->id);
+            $this->create('Music',       '🎵', '#EF4444', false, 3, $creative->id);
+            $this->create('Film & TV',   '🎬', '#FBBF24', false, 4, $creative->id);
+            $this->create('Arts & Crafts','🖌️','#F472B6', false, 5, $creative->id);
+            $this->create('Architecture','🏛️', '#64748B', false, 6, $creative->id);
 
-        Category::create(['name' => 'Photography', 'parent_id' => $creative->id, 'icon' => '📷', 'color' => '#3B82F6', 'order' => 1]);
-        
-        $design = Category::create(['name' => 'Design', 'parent_id' => $creative->id, 'icon' => '✨', 'color' => '#EC4899', 'order' => 2]);
-        Category::create(['name' => 'Graphic Design', 'parent_id' => $design->id, 'icon' => '🖼️', 'color' => '#F97316', 'order' => 1]);
-        Category::create(['name' => 'UI/UX Design', 'parent_id' => $design->id, 'icon' => '📱', 'color' => '#8B5CF6', 'order' => 2]);
-        Category::create(['name' => 'Web Design', 'parent_id' => $design->id, 'icon' => '🌐', 'color' => '#06B6D4', 'order' => 3]);
+            $design = $this->create('Design', '✨', '#EC4899', false, 7, $creative->id);
+                $this->create('Graphic Design', '🖼️', '#F97316', false, 1, $design->id);
+                $this->create('UI/UX Design',   '📱', '#8B5CF6', false, 2, $design->id);
+                $this->create('Web Design',     '🌐', '#06B6D4', false, 3, $design->id);
 
-        Category::create(['name' => 'Writing', 'parent_id' => $creative->id, 'icon' => '✍️', 'color' => '#6366F1', 'order' => 3]);
-        Category::create(['name' => 'Music', 'parent_id' => $creative->id, 'icon' => '🎵', 'color' => '#EF4444', 'order' => 4]);
-        Category::create(['name' => 'Film & TV', 'parent_id' => $creative->id, 'icon' => '🎬', 'color' => '#FBBF24', 'order' => 5]);
-        Category::create(['name' => 'Arts & Crafts', 'parent_id' => $creative->id, 'icon' => '🖌️', 'color' => '#F472B6', 'order' => 6]);
-        Category::create(['name' => 'Architecture', 'parent_id' => $creative->id, 'icon' => '🏛️', 'color' => '#64748B', 'order' => 7]);
-
-        // ============================================
+        // ════════════════════════════════════════
         // EDUCATION & LEARNING
-        // ============================================
-        $education = Category::create([
-            'name' => 'Education & Learning',
-            'description' => 'Knowledge, skills, and continuous learning',
-            'color' => '#3B82F6',
-            'icon' => '📚',
-            'is_featured' => false,
-            'order' => $order++,
-        ]);
+        // ════════════════════════════════════════
+        $education = $this->create('Education & Learning', '📚', '#3B82F6', false, $order++);
+            $this->create('Tutorials',         '📖', '#10B981', false, 1, $education->id);
+            $this->create('How-To Guides',     '📝', '#06B6D4', false, 2, $education->id);
+            $this->create('Online Courses',    '🎓', '#8B5CF6', false, 3, $education->id);
+            $this->create('Study Tips',        '💡', '#FBBF24', false, 4, $education->id);
+            $this->create('Career Advice',     '💼', '#10B981', false, 5, $education->id);
+            $this->create('Skills Development','🛠️', '#F97316', false, 6, $education->id);
 
-        Category::create(['name' => 'Tutorials', 'parent_id' => $education->id, 'icon' => '📖', 'color' => '#10B981', 'order' => 1]);
-        Category::create(['name' => 'How-To Guides', 'parent_id' => $education->id, 'icon' => '📝', 'color' => '#06B6D4', 'order' => 2]);
-        Category::create(['name' => 'Online Courses', 'parent_id' => $education->id, 'icon' => '🎓', 'color' => '#8B5CF6', 'order' => 3]);
-        Category::create(['name' => 'Study Tips', 'parent_id' => $education->id, 'icon' => '💡', 'color' => '#FBBF24', 'order' => 4]);
-        Category::create(['name' => 'Career Advice', 'parent_id' => $education->id, 'icon' => '💼', 'color' => '#10B981', 'order' => 5]);
-        Category::create(['name' => 'Skills Development', 'parent_id' => $education->id, 'icon' => '🛠️', 'color' => '#F97316', 'order' => 6]);
-
-        // ============================================
+        // ════════════════════════════════════════
         // NEWS & OPINION
-        // ============================================
-        $news = Category::create([
-            'name' => 'News & Opinion',
-            'description' => 'Current events, analysis, and perspectives',
-            'color' => '#EF4444',
-            'icon' => '📰',
-            'is_featured' => false,
-            'order' => $order++,
-        ]);
+        // ════════════════════════════════════════
+        $news = $this->create('News & Opinion', '📰', '#EF4444', false, $order++);
+            $this->create('Current Events',    '🌍', '#06B6D4', false, 1, $news->id);
+            $this->create('Politics',          '🏛️', '#6366F1', false, 2, $news->id);
+            $this->create('Opinion & Editorial','💭', '#8B5CF6', false, 3, $news->id);
+            $this->create('Analysis',          '🔍', '#14B8A6', false, 4, $news->id);
+            $this->create('Interviews',        '🎤', '#F59E0B', false, 5, $news->id);
 
-        Category::create(['name' => 'Current Events', 'parent_id' => $news->id, 'icon' => '🌍', 'color' => '#06B6D4', 'order' => 1]);
-        Category::create(['name' => 'Politics', 'parent_id' => $news->id, 'icon' => '🏛️', 'color' => '#6366F1', 'order' => 2]);
-        Category::create(['name' => 'Opinion & Editorial', 'parent_id' => $news->id, 'icon' => '💭', 'color' => '#8B5CF6', 'order' => 3]);
-        Category::create(['name' => 'Analysis', 'parent_id' => $news->id, 'icon' => '🔍', 'color' => '#14B8A6', 'order' => 4]);
-        Category::create(['name' => 'Interviews', 'parent_id' => $news->id, 'icon' => '🎤', 'color' => '#F59E0B', 'order' => 5]);
-
-        // ============================================
+        // ════════════════════════════════════════
         // ENTERTAINMENT
-        // ============================================
-        $entertainment = Category::create([
-            'name' => 'Entertainment',
-            'description' => 'Movies, books, TV, and pop culture',
-            'color' => '#FBBF24',
-            'icon' => '🎭',
-            'is_featured' => false,
-            'order' => $order++,
-        ]);
+        // ════════════════════════════════════════
+        $entertainment = $this->create('Entertainment', '🎭', '#FBBF24', false, $order++);
+            $this->create('Movies',        '🎥', '#EF4444', false, 1, $entertainment->id);
+            $this->create('Books',         '📚', '#8B5CF6', false, 2, $entertainment->id);
+            $this->create('TV Shows',      '📺', '#06B6D4', false, 3, $entertainment->id);
+            $this->create('Celebrity News','⭐', '#F472B6', false, 4, $entertainment->id);
+            $this->create('Podcasts',      '🎙️', '#F97316', false, 5, $entertainment->id);
+            $this->create('Comics & Manga','📖', '#EC4899', false, 6, $entertainment->id);
 
-        Category::create(['name' => 'Movies', 'parent_id' => $entertainment->id, 'icon' => '🎥', 'color' => '#EF4444', 'order' => 1]);
-        Category::create(['name' => 'Books', 'parent_id' => $entertainment->id, 'icon' => '📚', 'color' => '#8B5CF6', 'order' => 2]);
-        Category::create(['name' => 'TV Shows', 'parent_id' => $entertainment->id, 'icon' => '📺', 'color' => '#06B6D4', 'order' => 3]);
-        Category::create(['name' => 'Celebrity News', 'parent_id' => $entertainment->id, 'icon' => '⭐', 'color' => '#F472B6', 'order' => 4]);
-        Category::create(['name' => 'Podcasts', 'parent_id' => $entertainment->id, 'icon' => '🎙️', 'color' => '#F97316', 'order' => 5]);
-        Category::create(['name' => 'Comics & Manga', 'parent_id' => $entertainment->id, 'icon' => '📖', 'color' => '#EC4899', 'order' => 6]);
+        // ════════════════════════════════════════
+        // SPORTS
+        // ════════════════════════════════════════
+        $sports = $this->create('Sports', '⚽', '#10B981', false, $order++);
+            $this->create('Football',      '⚽', '#10B981', false, 1, $sports->id);
+            $this->create('Basketball',    '🏀', '#F97316', false, 2, $sports->id);
+            $this->create('Tennis',        '🎾', '#FBBF24', false, 3, $sports->id);
+            $this->create('Running',       '🏃', '#06B6D4', false, 4, $sports->id);
+            $this->create('Cycling',       '🚴', '#84CC16', false, 5, $sports->id);
+            $this->create('Extreme Sports','🏂', '#EF4444', false, 6, $sports->id);
+            $this->create('Sports News',   '📰', '#8B5CF6', false, 7, $sports->id);
 
-        // ============================================
-        // SPORTS & FITNESS
-        // ============================================
-        $sports = Category::create([
-            'name' => 'Sports',
-            'description' => 'Sports news, analysis, and fitness',
-            'color' => '#10B981',
-            'icon' => '⚽',
-            'is_featured' => false,
-            'order' => $order++,
-        ]);
-
-        Category::create(['name' => 'Football', 'parent_id' => $sports->id, 'icon' => '⚽', 'color' => '#10B981', 'order' => 1]);
-        Category::create(['name' => 'Basketball', 'parent_id' => $sports->id, 'icon' => '🏀', 'color' => '#F97316', 'order' => 2]);
-        Category::create(['name' => 'Tennis', 'parent_id' => $sports->id, 'icon' => '🎾', 'color' => '#FBBF24', 'order' => 3]);
-        Category::create(['name' => 'Running', 'parent_id' => $sports->id, 'icon' => '🏃', 'color' => '#06B6D4', 'order' => 4]);
-        Category::create(['name' => 'Cycling', 'parent_id' => $sports->id, 'icon' => '🚴', 'color' => '#84CC16', 'order' => 5]);
-        Category::create(['name' => 'Extreme Sports', 'parent_id' => $sports->id, 'icon' => '🏂', 'color' => '#EF4444', 'order' => 6]);
-        Category::create(['name' => 'Sports News', 'parent_id' => $sports->id, 'icon' => '📰', 'color' => '#8B5CF6', 'order' => 7]);
-
-        // ============================================
+        // ════════════════════════════════════════
         // SCIENCE & ENVIRONMENT
-        // ============================================
-        $science = Category::create([
-            'name' => 'Science & Environment',
-            'description' => 'Scientific discoveries and environmental issues',
-            'color' => '#14B8A6',
-            'icon' => '🔬',
-            'is_featured' => false,
-            'order' => $order++,
-        ]);
+        // ════════════════════════════════════════
+        $science = $this->create('Science & Environment', '🔬', '#14B8A6', false, $order++);
+            $this->create('Science News',      '🧪', '#3B82F6', false, 1, $science->id);
+            $this->create('Space & Astronomy', '🚀', '#6366F1', false, 2, $science->id);
+            $this->create('Environment',       '🌍', '#10B981', false, 3, $science->id);
+            $this->create('Climate Change',    '🌡️', '#EF4444', false, 4, $science->id);
+            $this->create('Sustainability',    '♻️', '#84CC16', false, 5, $science->id);
+            $this->create('Wildlife',          '🦁', '#F59E0B', false, 6, $science->id);
 
-        Category::create(['name' => 'Science News', 'parent_id' => $science->id, 'icon' => '🧪', 'color' => '#3B82F6', 'order' => 1]);
-        Category::create(['name' => 'Space & Astronomy', 'parent_id' => $science->id, 'icon' => '🚀', 'color' => '#6366F1', 'order' => 2]);
-        Category::create(['name' => 'Environment', 'parent_id' => $science->id, 'icon' => '🌍', 'color' => '#10B981', 'order' => 3]);
-        Category::create(['name' => 'Climate Change', 'parent_id' => $science->id, 'icon' => '🌡️', 'color' => '#EF4444', 'order' => 4]);
-        Category::create(['name' => 'Sustainability', 'parent_id' => $science->id, 'icon' => '♻️', 'color' => '#84CC16', 'order' => 5]);
-        Category::create(['name' => 'Wildlife', 'parent_id' => $science->id, 'icon' => '🦁', 'color' => '#F59E0B', 'order' => 6]);
-
-        // ============================================
+        // ════════════════════════════════════════
         // AUTOMOTIVE
-        // ============================================
-        $automotive = Category::create([
-            'name' => 'Automotive',
-            'description' => 'Cars, vehicles, and automotive technology',
-            'color' => '#64748B',
-            'icon' => '🚗',
-            'is_featured' => false,
-            'order' => $order++,
+        // ════════════════════════════════════════
+        $automotive = $this->create('Automotive', '🚗', '#64748B', false, $order++);
+            $this->create('Car Reviews',       '⭐', '#FBBF24', false, 1, $automotive->id);
+            $this->create('Electric Vehicles', '⚡', '#10B981', false, 2, $automotive->id);
+            $this->create('Motorcycles',       '🏍️', '#EF4444', false, 3, $automotive->id);
+            $this->create('Auto Maintenance',  '🔧', '#F97316', false, 4, $automotive->id);
+
+        $total = Category::count();
+        $this->command->info("✅ Seeded {$total} categories successfully!");
+    }
+
+    private function create(
+        string $name,
+        string $icon,
+        string $color,
+        bool $featured,
+        int $order,
+        ?int $parentId = null
+    ): Category {
+        return Category::create([
+            'name'        => $name,
+            'slug'        => Str::slug($name),  // ← generate slug explicitly
+            'icon'        => $icon,
+            'color'       => $color,
+            'is_featured' => $featured,
+            'order'       => $order,
+            'parent_id'   => $parentId,
         ]);
-
-        Category::create(['name' => 'Car Reviews', 'parent_id' => $automotive->id, 'icon' => '⭐', 'color' => '#FBBF24', 'order' => 1]);
-        Category::create(['name' => 'Electric Vehicles', 'parent_id' => $automotive->id, 'icon' => '⚡', 'color' => '#10B981', 'order' => 2]);
-        Category::create(['name' => 'Motorcycles', 'parent_id' => $automotive->id, 'icon' => '🏍️', 'color' => '#EF4444', 'order' => 3]);
-        Category::create(['name' => 'Auto Maintenance', 'parent_id' => $automotive->id, 'icon' => '🔧', 'color' => '#F97316', 'order' => 4]);
-
-        $this->command->info('✅ Successfully seeded ' . Category::count() . ' categories!');
     }
 }

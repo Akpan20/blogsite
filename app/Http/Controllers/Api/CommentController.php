@@ -76,6 +76,40 @@ class CommentController extends Controller
         ], 201);
     }
 
+    public function guestStore(Request $request): JsonResponse
+    {
+        $validated = $request->validate([
+            'post_id' => 'required|exists:posts,id',
+            'content' => 'required|string|min:3|max:2000',
+            'name'    => 'required|string|max:100',
+            'email'   => 'nullable|email|max:255',
+            'parent_id' => 'nullable|exists:comments,id',
+        ]);
+
+        // Optional: check if post allows comments
+        $post = Post::findOrFail($validated['post_id']);
+        // if (!$post->allows_comments) abort(403);
+
+        $comment = Comment::create([
+            'post_id'    => $validated['post_id'],
+            'content'    => $validated['content'],
+            'name'       => $validated['name'],
+            'email'      => $validated['email'],
+            'parent_id'  => $validated['parent_id'] ?? null,
+            'approved'   => false,
+            'user_id'    => null,
+        ]);
+
+        $comment->load(['reactions']);
+
+        broadcast(new CommentPosted($comment))->toOthers();
+
+        return response()->json([
+            'message' => 'Comment posted successfully',
+            'comment' => $comment,
+        ], 201);
+    }
+
     /**
      * Display the specified comment
      */

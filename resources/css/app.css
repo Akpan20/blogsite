@@ -1,5 +1,13 @@
 @import 'tailwindcss';
 @import "tw-animate-css";
+@plugin "@tailwindcss/typography";
+
+/* Ensure prose lists are always visible */
+.prose ul, .prose ol {
+  list-style: revert;
+  padding-left: revert;
+  margin: revert;
+}
 
 @custom-variant dark (&:is(.dark *));
 

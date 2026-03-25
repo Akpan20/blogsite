@@ -80,7 +80,7 @@ export const SearchBar: React.FC<SearchBarProps> = ({
   };
 
   const handleSuggestionClick = (suggestion: SearchSuggestion) => {
-    navigate(`/posts/${suggestion.slug || suggestion.id}`);
+    navigate(`/content/${suggestion.slug}`);
     setQuery('');
     setShowDropdown(false);
   };

@@ -17,14 +17,15 @@ export default function SeriesList() {
     queryKey: ['series'],
     queryFn: async () => {
       const response = await api.get('/series');
-      return response.data;
+      // API may return { data: [...] } or a plain array
+      return Array.isArray(response.data) ? response.data : (response.data.data ?? []);
     },
   });
 
   if (isLoading) {
     return (
       <div className="flex justify-center items-center min-h-400px">
-        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600"></div>
+        <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-blue-600" />
       </div>
     );
   }
@@ -46,40 +47,40 @@ export default function SeriesList() {
         </p>
       </header>
 
-      <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
-        {series?.map((item) => (
-          <Link
-            key={item.id}
-            to={`/series/${item.slug}`}
-            className="group block bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition"
-          >
-            {item.cover_image ? (
-              <img
-                src={item.cover_image}
-                alt={item.title}
-                className="w-full h-48 object-cover"
-              />
-            ) : (
-              <div className="w-full h-48 bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
-                {item.title.charAt(0)}
-              </div>
-            )}
-            <div className="p-6">
-              <h2 className="text-xl font-semibold text-gray-900 group-hover:text-blue-600 transition">
-                {item.title}
-              </h2>
-              {item.description && (
-                <p className="mt-2 text-gray-600 line-clamp-2">{item.description}</p>
+      {series && series.length > 0 ? (
+        <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
+          {series.map((item) => (
+            <Link
+              key={item.id}
+              to={`/series/${item.slug}`}
+              className="group block bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden hover:shadow-md transition"
+            >
+              {item.cover_image ? (
+                <img
+                  src={item.cover_image}
+                  alt={item.title}
+                  className="w-full h-48 object-cover"
+                />
+              ) : (
+                <div className="w-full h-48 bg-linear-to-br from-blue-500 to-purple-600 flex items-center justify-center text-white text-2xl font-bold">
+                  {item.title.charAt(0)}
+                </div>
               )}
-              <div className="mt-4 flex items-center text-sm text-gray-500">
-                <span>{item.posts_count} posts</span>
+              <div className="p-6">
+                <h2 className="text-xl font-semibold text-gray-900 group-hover:text-blue-600 transition">
+                  {item.title}
+                </h2>
+                {item.description && (
+                  <p className="mt-2 text-gray-600 line-clamp-2">{item.description}</p>
+                )}
+                <div className="mt-4 text-sm text-gray-500">
+                  {item.posts_count} posts
+                </div>
               </div>
-            </div>
-          </Link>
-        ))}
-      </div>
-
-      {series?.length === 0 && (
+            </Link>
+          ))}
+        </div>
+      ) : (
         <p className="text-center text-gray-500 py-12">No series found.</p>
       )}
     </div>

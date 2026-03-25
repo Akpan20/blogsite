@@ -15,6 +15,24 @@ interface Category {
   children?: Category[];
 }
 
+// Flatten nested categories into a single list with depth info
+// so we can render them properly in a <select>
+function flattenCategories(
+  categories: Category[],
+  depth = 0,
+  excludeId?: number
+): { category: Category; depth: number }[] {
+  const result: { category: Category; depth: number }[] = [];
+  for (const cat of categories) {
+    if (cat.id === excludeId) continue;
+    result.push({ category: cat, depth });
+    if (cat.children?.length) {
+      result.push(...flattenCategories(cat.children, depth + 1, excludeId));
+    }
+  }
+  return result;
+}
+
 export default function CategoryManager() {
   const [categories, setCategories] = useState<Category[]>([]);
   const [loading, setLoading] = useState(true);
@@ -49,14 +67,12 @@ export default function CategoryManager() {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-
     try {
       if (editingCategory) {
         await axios.put(`/api/categories/${editingCategory.id}`, formData);
       } else {
         await axios.post('/api/categories', formData);
       }
-
       fetchCategories();
       closeModal();
     } catch (error: any) {
@@ -67,7 +83,6 @@ export default function CategoryManager() {
 
   const handleDelete = async (category: Category) => {
     if (!confirm(`Delete "${category.name}"? This cannot be undone.`)) return;
-
     try {
       await axios.delete(`/api/categories/${category.id}`);
       fetchCategories();
@@ -155,6 +170,9 @@ export default function CategoryManager() {
     );
   }
 
+  // Flatten all categories for the parent selector, excluding the category being edited
+  const flatOptions = flattenCategories(categories, 0, editingCategory?.id ?? undefined);
+
   return (
     <div className="max-w-6xl mx-auto p-6">
       <div className="flex justify-between items-center mb-6">
@@ -171,21 +189,11 @@ export default function CategoryManager() {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Name
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Slug
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Posts
-              </th>
-              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">
-                Status
-              </th>
-              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">
-                Actions
-              </th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Name</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Slug</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Posts</th>
+              <th className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase">Status</th>
+              <th className="px-6 py-3 text-right text-xs font-medium text-gray-500 uppercase">Actions</th>
             </tr>
           </thead>
           <tbody className="bg-white divide-y divide-gray-200">
@@ -210,9 +218,7 @@ export default function CategoryManager() {
 
             <form onSubmit={handleSubmit} className="space-y-4">
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Name *
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Name *</label>
                 <input
                   type="text"
                   value={formData.name}
@@ -223,9 +229,7 @@ export default function CategoryManager() {
               </div>
 
               <div>
-                <label className="block text-sm font-medium text-gray-700 mb-1">
-                  Description
-                </label>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
                 <textarea
                   value={formData.description}
                   onChange={(e) => setFormData({ ...formData, description: e.target.value })}
@@ -236,9 +240,7 @@ export default function CategoryManager() {
 
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Color
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Color</label>
                   <input
                     type="color"
                     value={formData.color}
@@ -246,11 +248,8 @@ export default function CategoryManager() {
                     className="w-full h-10 rounded-lg cursor-pointer"
                   />
                 </div>
-
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">
-                    Icon (emoji)
-                  </label>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Icon (emoji)</label>
                   <input
                     type="text"
                     value={formData.icon}
@@ -261,21 +260,27 @@ export default function CategoryManager() {
                 </div>
               </div>
 
+              {/* FIXED: Parent category selector now shows all categories
+                  (including nested) with indentation and icon + name */}
               <div>
                 <label className="block text-sm font-medium text-gray-700 mb-1">
                   Parent Category
                 </label>
                 <select
-                  value={formData.parent_id || ''}
-                  onChange={(e) => setFormData({ 
-                    ...formData, 
-                    parent_id: e.target.value ? parseInt(e.target.value) : null 
+                  value={formData.parent_id ?? ''}
+                  onChange={(e) => setFormData({
+                    ...formData,
+                    parent_id: e.target.value ? parseInt(e.target.value) : null
                   })}
                   className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500"
                 >
-                  <option value="">None (Root Category)</option>
-                  {categories.map(cat => (
-                    <option key={cat.id} value={cat.id} disabled={cat.id === editingCategory?.id}>
+                  <option value="">— None (Root Category) —</option>
+                  {flatOptions.map(({ category: cat, depth }) => (
+                    <option key={cat.id} value={cat.id}>
+                      {/* Indent with non-breaking spaces to show hierarchy */}
+                      {'\u00A0\u00A0\u00A0\u00A0'.repeat(depth)}
+                      {depth > 0 ? '└ ' : ''}
+                      {cat.icon ? `${cat.icon} ` : ''}
                       {cat.name}
                     </option>
                   ))}

@@ -73,7 +73,7 @@ export default function TagCloud({
       setTags(enrichedTags);
     } catch (error) {
       console.error('Failed to fetch tag cloud:', error);
-      setTags([]); // ← good practice: clear on error
+      setTags([]);
     } finally {
       setLoading(false);
     }
@@ -139,7 +139,7 @@ export default function TagCloud({
   );
 
   const renderBubbleTag = (tag: TagCloudItem) => {
-    const size = tag.font_size * 3; // Make bubbles larger
+    const size = tag.font_size * 3;
     
     return (
       <Link

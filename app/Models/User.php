@@ -9,6 +9,7 @@ use Illuminate\Notifications\Notifiable;
 use Laravel\Sanctum\HasApiTokens;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Illuminate\Database\Eloquent\Relations\BelongsToMany;
+use NotificationChannels\WebPush\HasPushSubscriptions;
 use App\Models\UserSubscription;
 use App\Models\PaymentTransaction;
 use Illuminate\Support\Str;
@@ -85,7 +86,7 @@ use Illuminate\Support\Str;
  */
 class User extends Authenticatable implements MustVerifyEmail
 {
-    use HasApiTokens, HasFactory, Notifiable;
+    use HasApiTokens, HasFactory, Notifiable, HasPushSubscriptions;
 
     protected $fillable = [
         'name',
@@ -377,5 +378,18 @@ class User extends Authenticatable implements MustVerifyEmail
             })
             ->whereNull('cancelled_at')
             ->latest();
+    }
+
+    // ============================================
+    // NOTIFICATIONS & SUBSCRIPTIONS
+    // ============================================
+
+    /**
+     * Optional: Define how the user should be notified via WebPush
+     * This is useful if you want to filter which users get push alerts.
+     */
+    public function routeNotificationForWebPush()
+    {
+        return $this->pushSubscriptions;
     }
 }

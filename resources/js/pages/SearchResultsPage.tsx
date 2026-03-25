@@ -262,7 +262,7 @@ const SearchResultsPage: React.FC = () => {
             <div className="space-y-6">
               {results.results.map((post) => (
                 <Card key={post.id} className="p-6 hover:shadow-lg transition-shadow">
-                  <Link to={`/posts/${post.slug || post.id}`}>
+                  <Link to={`/content/${post.slug}`}>
                     <h2 className="text-xl font-bold mb-2 hover:text-blue-600 transition-colors">
                       {post.title}
                     </h2>

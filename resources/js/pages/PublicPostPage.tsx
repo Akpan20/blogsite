@@ -1,8 +1,15 @@
-import { useEffect } from 'react';
-import { useParams } from 'react-router-dom';
+"use client";
+
+import { useEffect, useMemo, useState } from 'react';
+import { useParams, Link } from 'react-router-dom';
 import { useQuery } from '@tanstack/react-query';
 import { format } from 'date-fns';
-import { Calendar, User, Tag, FolderOpen, BookOpen, Eye, MessageSquare } from 'lucide-react';
+import { marked } from 'marked';
+import { Calendar, Tag, FolderOpen, BookOpen, Eye, MessageSquare } from 'lucide-react';
+import { ScrollTriggeredNewsletter } from '@/components/newsletter/ScrollTriggeredNewsletter';
+import Lightbox from "yet-another-react-lightbox";
+import "yet-another-react-lightbox/styles.css";
+import { useScrollProgress } from '@/hooks/useScrollProgress';
 import api from '@/lib/api';
 import { SEOHead } from '@/components/seo/SEOHead';
 import { CommentSection } from '@/components/comments/CommentSection';
@@ -11,60 +18,47 @@ import { Card, CardContent } from '@/components/ui/card';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Skeleton } from '@/components/ui/skeleton';
 import { Button } from '@/components/ui/button';
-import { Link } from 'react-router-dom';
+import RelatedPosts from '@/components/content/RelatedPosts';
 
+// --- Custom Markdown Renderer for Lazy Loading & SEO ---
+const renderer = new marked.Renderer();
+
+renderer.image = (href, title, text) => {
+  return `
+    <figure class="my-8 group">
+      <img 
+        src="${href}" 
+        alt="${text}" 
+        title="${title || text || ''}" 
+        loading="lazy" 
+        class="rounded-xl shadow-lg w-full h-auto border border-gray-100 dark:border-gray-800 transition-transform duration-300 group-hover:scale-[1.01] cursor-zoom-in"
+      />
+      ${title ? `<figcaption class="text-center text-sm text-gray-500 mt-3 italic">${title}</figcaption>` : ''}
+    </figure>
+  `;
+};
+
+marked.setOptions({ breaks: true, gfm: true, renderer });
+
+// --- Interface ---
 interface Post {
-  id: number;
-  title: string;
-  content: string;
-  excerpt: string;
-  slug: string;
-  status: string;
-  is_premium: boolean;
-  premium_tier: string | null;
-  reading_time: number;
-  views_count: number;
-  likes_count: number;
-  comments_count: number;
-  created_at: string;
-  updated_at: string;
-  published_at: string;
-  meta_title: string | null;
-  meta_description: string | null;
-  og_image: string | null;
-  author: {
-    id: number;
-    name: string;
-    username: string;
-    avatar: string | null;
-    bio: string | null;
-  };
-  category: {
-    id: number;
-    name: string;
-    slug: string;
-  } | null;
-  tags: {
-    id: number;
-    name: string;
-    slug: string;
-  }[];
-  series: {
-    id: number;
-    title: string;
-    slug: string;
-  }[];
+  id: number; title: string; content: string; excerpt: string; slug: string;
+  status: string; is_premium: boolean; reading_time: number; views_count: number;
+  comments_count: number; published_at: string; meta_title: string | null;
+  meta_description: string | null; og_image: string | null;
+  author: { name: string; avatar: string | null; bio: string | null; };
+  category: { name: string; slug: string; } | null;
+  tags: { id: number; name: string; slug: string; }[];
+  series: { title: string; slug: string; }[];
 }
 
 export default function PublicPostPage() {
+  const completion = useScrollProgress();
   const { slug } = useParams<{ slug: string }>();
+  const [lightboxOpen, setLightboxOpen] = useState(false);
+  const [activeImage, setActiveImage] = useState("");
 
-  // Fetch post data
-  const {
-    data: post,
-    isLoading,
-    error,
-  } = useQuery<Post>({
+  const { data: post, isLoading, error } = useQuery<Post>({
     queryKey: ['post', slug],
     queryFn: async () => {
       const { data } = await api.get(`/posts/${slug}`);
@@ -73,190 +67,202 @@ export default function PublicPostPage() {
     enabled: !!slug,
   });
 
-  // Track view when post loads
+  // Track view
   useEffect(() => {
     if (post?.id) {
-      api.post(`/posts/${post.id}/track-view`).catch(() => {
-        // Silently fail – view tracking is non‑critical
-      });
+      api.post(`/posts/${post.id}/track-view`).catch(() => {});
     }
   }, [post?.id]);
 
-  if (isLoading) {
-    return (
-      <div className="container max-w-4xl mx-auto px-4 py-8">
-        <Skeleton className="h-12 w-3/4 mb-4" />
-        <Skeleton className="h-6 w-1/2 mb-8" />
-        <Skeleton className="h-64 w-full mb-4" />
-        <Skeleton className="h-4 w-full mb-2" />
-        <Skeleton className="h-4 w-5/6 mb-2" />
-        <Skeleton className="h-4 w-4/6" />
-      </div>
-    );
-  }
+  const saveForOffline = async () => {
+    if ('caches' in window) {
+      const cache = await caches.open('offline-posts');
+      await cache.add(window.location.href);
+      await cache.add(`/api/posts/${slug}`);
+      alert("Post saved for offline reading!");
+    }
+  };
 
-  if (error || !post) {
-    return (
-      <div className="container max-w-4xl mx-auto px-4 py-16 text-center">
-        <h1 className="text-3xl font-bold text-gray-900 dark:text-white mb-4">
-          Post not found
-        </h1>
-        <p className="text-gray-600 dark:text-gray-400 mb-8">
-          The post you're looking for doesn't exist or has been removed.
-        </p>
-        <Button asChild>
-          <Link to="/">Go Home</Link>
-        </Button>
-      </div>
-    );
-  }
+  // Parse markdown
+  const renderedContent = useMemo(() => {
+    if (!post?.content) return '';
+    return marked.parse(post.content) as string;
+  }, [post?.content]);
 
-  // Prepare meta tags for SEO
-  const metaTitle = post.meta_title || post.title;
-  const metaDescription = post.meta_description || post.excerpt || post.content.substring(0, 160);
-  const ogImage = post.og_image || '/default-og-image.png'; // fallback
+  // --- Lightbox Trigger ---
+  const handleContentClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const target = e.target as HTMLElement;
+    if (target.tagName === 'IMG') {
+      const img = target as HTMLImageElement;
+      setActiveImage(img.src);
+      setLightboxOpen(true);
+    }
+  };
+
+  if (isLoading) return <PostSkeleton />;
+  if (error || !post) return <PostNotFound />;
 
   return (
     <>
       <SEOHead
-        title={metaTitle}
-        description={metaDescription}
-        ogImage={ogImage}
+        title={post.meta_title || post.title}
+        description={post.meta_description || post.excerpt}
+        ogImage={post.og_image || '/default-og-image.png'}
         ogType="article"
-        twitterCard="summary_large_image"
       />
 
+      {/* 2. Sticky Progress Bar Container */}
+      <div className="fixed top-0 left-0 w-full h-1 z-50 pointer-events-none">
+        <div 
+          className="h-full bg-linear-to-r from-blue-400 to-blue-600 transition-all duration-150 ease-out"
+          style={{ width: `${completion}%` }}
+        />
+      </div>
+
       <article className="container max-w-4xl mx-auto px-4 py-8">
-        {/* Header */}
         <header className="mb-8">
-          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4">
+          <h1 className="text-4xl md:text-5xl font-bold text-gray-900 dark:text-white mb-4 leading-tight">
             {post.title}
           </h1>
 
-          {/* Meta info */}
-          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-6">
+          <div className="flex flex-wrap items-center gap-4 text-sm text-gray-600 dark:text-gray-400 mb-6 border-b border-gray-100 dark:border-gray-800 pb-6">
             <div className="flex items-center gap-2">
-              <Avatar className="h-8 w-8">
+              <Avatar className="h-8 w-8 ring-2 ring-blue-500/20">
                 <AvatarImage src={post.author.avatar || undefined} />
-                <AvatarFallback>
-                  {post.author.name.charAt(0).toUpperCase()}
-                </AvatarFallback>
+                <AvatarFallback>{post.author.name.charAt(0)}</AvatarFallback>
               </Avatar>
-              <span>{post.author.name}</span>
+              <span className="font-medium text-gray-900 dark:text-gray-200">{post.author.name}</span>
             </div>
-
-            <div className="flex items-center gap-1">
-              <Calendar className="h-4 w-4" />
-              <time dateTime={post.published_at}>
-                {format(new Date(post.published_at), 'MMMM d, yyyy')}
-              </time>
-            </div>
-
+            <div className="flex items-center gap-1"><Calendar className="h-4 w-4" />{format(new Date(post.published_at), 'MMM d, yyyy')}</div>
             <div className="flex items-center gap-1">
               <BookOpen className="h-4 w-4" />
-              <span>{post.reading_time} min read</span>
+              <span>
+                {completion > 95 
+                  ? "Finished!" 
+                  : `${Math.ceil(post.reading_time * (1 - completion / 100))} min left`}
+              </span>
             </div>
-
-            <div className="flex items-center gap-1">
-              <Eye className="h-4 w-4" />
-              <span>{post.views_count} views</span>
-            </div>
-
-            {post.is_premium && (
-              <Badge variant="premium" className="bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100">
-                Premium
-              </Badge>
-            )}
+            <div className="flex items-center gap-1"><Eye className="h-4 w-4" />{post.views_count} views</div>
           </div>
 
-          {/* Category & Tags */}
           <div className="flex flex-wrap gap-4 items-center">
             {post.category && (
-              <Link
-                to={`/category/${post.category.slug}`}
-                className="flex items-center gap-1 text-sm text-blue-600 hover:underline"
-              >
-                <FolderOpen className="h-4 w-4" />
-                {post.category.name}
+              <Link to={`/category/${post.category.slug}`} className="flex items-center gap-1 text-sm font-semibold text-blue-600 bg-blue-50 dark:bg-blue-900/20 px-3 py-1 rounded-full">
+                <FolderOpen className="h-3.5 w-3.5" /> {post.category.name}
               </Link>
             )}
-
-            {post.tags.length > 0 && (
-              <div className="flex items-center gap-2 flex-wrap">
-                <Tag className="h-4 w-4 text-gray-500" />
-                {post.tags.map((tag) => (
-                  <Link
-                    key={tag.id}
-                    to={`/tag/${tag.slug}`}
-                    className="text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded hover:bg-gray-200 dark:hover:bg-gray-700"
-                  >
-                    #{tag.name}
-                  </Link>
-                ))}
-              </div>
-            )}
+            {post.tags.map((tag) => (
+              <Link key={tag.id} to={`/tag/${tag.slug}`} className="text-sm text-gray-500 hover:text-blue-600 transition-colors">
+                #{tag.name}
+              </Link>
+            ))}
           </div>
         </header>
 
-        {/* Main content */}
+        {/* Post Body with Lightbox logic */}
         <div
-          className="prose prose-lg dark:prose-invert max-w-none mb-12"
-          dangerouslySetInnerHTML={{ __html: post.content }}
+          onClick={handleContentClick}
+          className="prose prose-lg dark:prose-invert max-w-none mb-12
+            prose-img:cursor-zoom-in
+            prose-headings:text-gray-900 dark:prose-headings:text-white
+            prose-blockquote:border-blue-500 prose-blockquote:bg-blue-50/50 dark:prose-blockquote:bg-blue-900/10
+            prose-pre:shadow-2xl prose-pre:border dark:prose-pre:border-gray-800"
+          dangerouslySetInnerHTML={{ __html: renderedContent }}
         />
 
-        {/* Author bio */}
-        {post.author.bio && (
-          <Card className="mb-12">
-            <CardContent className="pt-6">
-              <div className="flex items-start gap-4">
-                <Avatar className="h-12 w-12">
-                  <AvatarImage src={post.author.avatar || undefined} />
-                  <AvatarFallback>{post.author.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                <div>
-                  <h3 className="font-semibold text-lg mb-1">
-                    About {post.author.name}
-                  </h3>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    {post.author.bio}
-                  </p>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-        )}
+        {/* Lightbox Component */}
+        <Lightbox
+          open={lightboxOpen}
+          close={() => setLightboxOpen(false)}
+          slides={[{ src: activeImage }]}
+          render={{
+            buttonPrev: () => null,
+            buttonNext: () => null,
+          }}
+          styles={{ container: { backgroundColor: "rgba(0, 0, 0, .9)" } }}
+        />
 
-        {/* Series navigation (if in a series) */}
-        {post.series && post.series.length > 0 && (
-          <Card className="mb-12">
-            <CardContent className="pt-6">
-              <h3 className="font-semibold text-lg mb-3 flex items-center gap-2">
-                <BookOpen className="h-5 w-5" />
-                Part of a series: {post.series[0].title}
-              </h3>
-              <p className="text-gray-600 dark:text-gray-400 mb-4">
-                This post is part of the series “{post.series[0].title}”. 
-                You can read the other parts below:
-              </p>
-              {/* You might need a separate endpoint to list series posts */}
-              <Button variant="outline" asChild>
-                <Link to={`/series/${post.series[0].slug}`}>
-                  View all posts in series
-                </Link>
-              </Button>
-            </CardContent>
-          </Card>
-        )}
+        {/* Footer Sections */}
+        {post.author.bio && <AuthorCard author={post.author} />}
+        {post.series && post.series.length > 0 && <SeriesCard series={post.series[0]} />}
+
+        {/* Related Posts */}
+        <RelatedPosts postSlug={post.slug} />
 
         {/* Comments */}
-        <section className="mt-12">
-          <h2 className="text-2xl font-bold mb-6 flex items-center gap-2">
-            <MessageSquare className="h-6 w-6" />
-            Comments ({post.comments_count})
+        <section className="mt-16 border-t pt-12">
+          <h2 className="text-2xl font-bold mb-8 flex items-center gap-3">
+            <MessageSquare className="h-6 w-6 text-blue-500" />
+            Comments <span className="text-gray-400">({post.comments_count})</span>
           </h2>
           <CommentSection postId={post.id} />
         </section>
       </article>
+
+      {/* 👇 Add the Newsletter Popup here */}
+      <ScrollTriggeredNewsletter />
     </>
+  );
+}
+
+// --- Sub-Components ---
+
+function AuthorCard({ author }: { author: any }) {
+  return (
+    <Card className="mb-12 bg-gray-50 dark:bg-gray-900/50 border-none">
+      <CardContent className="pt-6">
+        <div className="flex items-center gap-4">
+          <Avatar className="h-16 w-16">
+            <AvatarImage src={author.avatar || undefined} />
+            <AvatarFallback>{author.name.charAt(0)}</AvatarFallback>
+          </Avatar>
+          <div>
+            <h3 className="font-bold text-xl mb-1">{author.name}</h3>
+            <p className="text-gray-600 dark:text-gray-400 text-sm leading-relaxed">{author.bio}</p>
+          </div>
+        </div>
+      </CardContent>
+    </Card>
+  );
+}
+
+function SeriesCard({ series }: { series: any }) {
+  return (
+    <Card className="mb-12 border-l-4 border-l-blue-500">
+      <CardContent className="pt-6">
+        <h3 className="font-bold text-lg mb-2 flex items-center gap-2">
+          <BookOpen className="h-5 w-5 text-blue-500" />
+          Series: {series.title}
+        </h3>
+        <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">You are reading a post that is part of a sequential series.</p>
+        <Button variant="outline" size="sm" asChild>
+          <Link to={`/series/${series.slug}`}>Explore the full series</Link>
+        </Button>
+      </CardContent>
+    </Card>
+  );
+}
+
+function PostSkeleton() {
+  return (
+    <div className="container max-w-4xl mx-auto px-4 py-8 space-y-4">
+      <Skeleton className="h-12 w-3/4" />
+      <Skeleton className="h-6 w-1/4" />
+      <Skeleton className="h-400px w-full rounded-xl" />
+      <div className="space-y-2">
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-full" />
+        <Skeleton className="h-4 w-2/3" />
+      </div>
+    </div>
+  );
+}
+
+function PostNotFound() {
+  return (
+    <div className="container max-w-4xl mx-auto px-4 py-16 text-center">
+      <h1 className="text-3xl font-bold mb-4">Post not found</h1>
+      <Button asChild><Link to="/">Return to Feed</Link></Button>
+    </div>
   );
 }

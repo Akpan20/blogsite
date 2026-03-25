@@ -93,7 +93,7 @@ export default function RelatedPosts({
           {posts.map((post) => (
             <Link
               key={post.id}
-              to={`/posts/${post.slug}`}
+              to={`/content/${post.slug}`}
               className="block p-2 hover:bg-gray-50 rounded transition"
             >
               <h4 className="font-medium text-gray-900 text-sm hover:text-blue-600 line-clamp-2">
@@ -122,7 +122,7 @@ export default function RelatedPosts({
           {posts.map((post) => (
             <Link
               key={post.id}
-              to={`/posts/${post.slug}`}
+              to={`/content/${post.slug}`}
               className="block p-6 hover:bg-gray-50 transition"
             >
               <div className="flex gap-4">
@@ -131,7 +131,7 @@ export default function RelatedPosts({
                   <img
                     src={post.featured_image}
                     alt={post.title}
-                    className="w-32 h-32 object-cover rounded-lg flex-shrink-0"
+                    className="w-32 h-32 object-cover rounded-lg shrink-0"
                   />
                 )}
 
@@ -196,7 +196,7 @@ export default function RelatedPosts({
         {posts.map((post) => (
           <Link
             key={post.id}
-            to={`/posts/${post.slug}`}
+            to={`/content/${post.slug}`}
             className="group"
           >
             {/* Featured Image */}

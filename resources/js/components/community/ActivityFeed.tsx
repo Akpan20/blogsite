@@ -141,7 +141,7 @@ export default function ActivityFeed({ type = 'personal', userId, limit = 20 }: 
             </Link>
             <span className="text-gray-600"> published a new post: </span>
             {metadata.post_slug && metadata.post_title ? (
-              <Link to={`/posts/${metadata.post_slug}`} className="text-blue-600 hover:underline font-medium">
+              <Link to={`/content/${metadata.post_slug}`} className="text-blue-600 hover:underline font-medium">
                 {metadata.post_title}
               </Link>
             ) : (
@@ -158,7 +158,7 @@ export default function ActivityFeed({ type = 'personal', userId, limit = 20 }: 
             </Link>
             <span className="text-gray-600"> commented on </span>
             {metadata.post_slug ? (
-              <Link to={`/posts/${metadata.post_slug}`} className="text-blue-600 hover:underline">
+              <Link to={`/content/${metadata.post_slug}`} className="text-blue-600 hover:underline">
                 a post
               </Link>
             ) : (
@@ -207,7 +207,7 @@ export default function ActivityFeed({ type = 'personal', userId, limit = 20 }: 
             </Link>
             <span className="text-gray-600"> liked </span>
             {metadata.post_slug ? (
-              <Link to={`/posts/${metadata.post_slug}`} className="text-blue-600 hover:underline">
+              <Link to={`/content/${metadata.post_slug}`} className="text-blue-600 hover:underline">
                 a post
               </Link>
             ) : (

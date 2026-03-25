@@ -6,22 +6,30 @@ import { toast } from 'sonner';
 
 type PostIdentifier = number | string;
 
+interface UsePostsParams {
+  search?: string;
+}
+
+type CreatePostInput = Omit<Post, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'slug'>;
+type UpdatePostInput = { id: PostIdentifier } & Partial<Post>;
+
 /**
- * Fetch all posts (authenticated user's posts)
+ * Fetch all posts (authenticated user's posts) with optional search filter.
+ * Always returns a plain Post[] regardless of whether the API paginates.
  */
-export const usePosts = () => {
+export const usePosts = (params?: UsePostsParams) => {
   return useQuery<Post[]>({
-    queryKey: ['posts'],
+    queryKey: ['posts', params?.search],
     queryFn: async () => {
-      const { data } = await api.get('/posts');
-      return data;
+      const { data } = await api.get('/posts', { params });
+      return Array.isArray(data) ? data : (data.data ?? []);
     },
   });
 };
 
 /**
- * Fetch a single post by ID or slug
- * Backend supports both numeric ID and string slug
+ * Fetch a single post by ID or slug.
+ * Backend supports both numeric ID and string slug.
  */
 export const usePost = (identifier: PostIdentifier | null | undefined) => {
   return useQuery<Post, AxiosError>({
@@ -30,9 +38,8 @@ export const usePost = (identifier: PostIdentifier | null | undefined) => {
       const { data } = await api.get(`/posts/${identifier}`);
       return data;
     },
-    enabled: !!identifier, // Prevents unnecessary fetches when identifier is falsy
+    enabled: !!identifier,
     retry: (failureCount, error) => {
-      // Don't retry on 404s
       if (error?.response?.status === 404) return false;
       return failureCount < 3;
     },
@@ -40,51 +47,40 @@ export const usePost = (identifier: PostIdentifier | null | undefined) => {
 };
 
 /**
- * Create a new post
+ * Create a new post.
  */
 export const useCreatePost = () => {
   const queryClient = useQueryClient();
 
-  return useMutation<
-    Post,
-    AxiosError<{ message?: string }>,
-    Omit<Post, 'id' | 'created_at' | 'updated_at' | 'user_id' | 'slug'> // slug usually auto-generated
-  >({
+  return useMutation<Post, AxiosError<{ message?: string }>, CreatePostInput>({
     mutationFn: async (newPost) => {
       const { data } = await api.post('/posts', newPost);
       return data;
     },
-    onSuccess: (createdPost) => {
+    onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['recent-posts'] });
-      // Optional: optimistically add to list if you want instant UI feedback
-      // queryClient.setQueryData(['posts'], (old: Post[] | undefined) => [...(old ?? []), createdPost]);
       toast.success('Post created successfully');
     },
     onError: (error) => {
-      const message = error.response?.data?.message || 'Failed to create post';
+      const message = error.response?.data?.message ?? 'Failed to create post';
       toast.error(message);
     },
   });
 };
 
 /**
- * Update an existing post
+ * Update an existing post.
  */
 export const useUpdatePost = () => {
   const queryClient = useQueryClient();
 
-  return useMutation<
-    Post,
-    AxiosError<{ message?: string }>,
-    { id: PostIdentifier } & Partial<Post>
-  >({
+  return useMutation<Post, AxiosError<{ message?: string }>, UpdatePostInput>({
     mutationFn: async ({ id, ...updates }) => {
       const { data } = await api.put(`/posts/${id}`, updates);
       return data;
     },
     onSuccess: (updatedPost) => {
-      // Invalidate list + specific post detail
       queryClient.invalidateQueries({ queryKey: ['posts'] });
       queryClient.invalidateQueries({ queryKey: ['post', updatedPost.id] });
       queryClient.invalidateQueries({ queryKey: ['post', updatedPost.slug] });
@@ -92,14 +88,14 @@ export const useUpdatePost = () => {
       toast.success('Post updated successfully');
     },
     onError: (error) => {
-      const message = error.response?.data?.message || 'Failed to update post';
+      const message = error.response?.data?.message ?? 'Failed to update post';
       toast.error(message);
     },
   });
 };
 
 /**
- * Delete a post
+ * Delete a post.
  */
 export const useDeletePost = () => {
   const queryClient = useQueryClient();
@@ -115,7 +111,7 @@ export const useDeletePost = () => {
       toast.success('Post deleted successfully');
     },
     onError: (error) => {
-      const message = error.response?.data?.message || 'Failed to delete post';
+      const message = error.response?.data?.message ?? 'Failed to delete post';
       toast.error(message);
     },
   });

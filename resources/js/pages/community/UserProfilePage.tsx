@@ -226,7 +226,7 @@ const UserProfilePage: React.FC = () => {
           <div className="space-y-4">
             {profile.recent_posts.map((post) => (
               <Card key={post.id} className="p-4">
-                <Link to={`/posts/${post.slug || post.id}`}>
+                <Link to={`/content/${post.slug}`}>
                   <h3 className="font-bold text-lg hover:text-blue-600">{post.title}</h3>
                 </Link>
                 <p className="text-sm text-gray-500 mt-2">

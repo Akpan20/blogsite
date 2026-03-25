@@ -59,6 +59,9 @@ class Comment extends Model
         'content',
         'is_edited',
         'edited_at',
+        'name',
+        'email', 
+        'approved',
     ];
 
     protected $casts = [
