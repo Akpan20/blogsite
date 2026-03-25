@@ -24,6 +24,10 @@ WORKDIR /var/www
 
 COPY . .
 
+# Set dummy environment variables to pass Laravel config validation during build
+ENV MONGODB_URI="mongodb://localhost:27017"
+ENV APP_KEY="base64:DummyKeyForBuildOnly="
+
 # PHP dependencies
 RUN composer install --no-dev --optimize-autoloader
 
@@ -40,8 +44,8 @@ RUN mkdir -p storage/logs \
 
 EXPOSE 8000
 
-CMD php artisan config:clear \
-    && php artisan config:cache \
+# Optimize and start the server
+CMD php artisan config:cache \
     && php artisan route:cache \
     && php artisan view:cache \
     && php artisan migrate --force \
