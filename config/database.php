@@ -11,6 +11,10 @@ return [
             'driver'   => 'mongodb',
             'dsn'      => env('MONGODB_URI'),
             'database' => env('MONGODB_DATABASE', 'blogsite'),
+            'options'  => [
+                'serverSelectionTimeoutMS' => 5000,
+                'tls'                      => true,
+            ],
         ],
     ],
 

@@ -1,15 +1,12 @@
 FROM php:8.3-cli
 
-# System dependencies – add ca-certificates
+# System dependencies
 RUN apt-get update && apt-get install -y \
     git curl zip unzip libzip-dev libpng-dev \
-    libonig-dev libxml2-dev pkg-config libssl-dev \
-    ca-certificates openssl \
-    && apt-get clean \
-    && update-ca-certificates --fresh
-
-# Optional: install mongodb-clients for testing (remove later)
-RUN apt-get install -y mongodb-clients
+    libonig-dev libxml2-dev pkg-config \
+    libssl-dev ca-certificates openssl \
+    && update-ca-certificates \
+    && apt-get clean
 
 # PHP extensions
 RUN docker-php-ext-install zip mbstring exif pcntl bcmath
@@ -29,17 +26,15 @@ WORKDIR /var/www
 
 COPY . .
 
-# Set dummy env vars for build (as before)
 ENV MONGODB_URI="mongodb://localhost:27017"
 ENV APP_KEY="base64:DummyKeyForBuildOnly="
 
-# Install dependencies
 RUN composer install --no-dev --optimize-autoloader
-
 RUN npm ci --legacy-peer-deps && npm run build
 
-# Storage permissions
-RUN mkdir -p storage/logs storage/framework/cache storage/framework/sessions storage/framework/views bootstrap/cache \
+RUN mkdir -p storage/logs storage/framework/cache \
+    storage/framework/sessions storage/framework/views \
+    bootstrap/cache \
     && chmod -R 775 storage bootstrap/cache
 
 EXPOSE 8000
