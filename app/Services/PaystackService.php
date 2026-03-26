@@ -7,6 +7,7 @@ use Illuminate\Support\Str;
 use Illuminate\Http\Client\Response;
 use Illuminate\Http\Client\PendingRequest;
 use Illuminate\Http\Client\RequestException;
+use Carbon\Carbon;
 
 class PaystackService
 {
@@ -56,6 +57,73 @@ class PaystackService
     }
 
     /**
+     * Convert amount to MongoDB compatible format
+     */
+    private function formatAmountForMongoDB(float|int $amount): array
+    {
+        return [
+            'value' => $amount,
+            'currency' => 'NGN', // or get from config
+            'in_kobo' => $amount * 100,
+        ];
+    }
+
+    /**
+     * Convert date to MongoDB compatible format (Carbon instance)
+     * This will be automatically converted to MongoDB Date by the package
+     */
+    private function toMongoDateTime(?string $dateString): ?Carbon
+    {
+        if (!$dateString) {
+            return null;
+        }
+        
+        try {
+            return Carbon::parse($dateString);
+        } catch (\Exception $e) {
+            return null;
+        }
+    }
+
+    /**
+     * Prepare data for MongoDB storage
+     * Uses Carbon dates which will be automatically converted by jenssegers/mongodb
+     */
+    public function prepareForMongoDB(array $data): array
+    {
+        // Convert standard dates to Carbon instances (MongoDB will handle conversion)
+        $dateFields = ['created_at', 'updated_at', 'paid_at', 'expires_at', 'transaction_date'];
+        foreach ($dateFields as $field) {
+            if (isset($data[$field]) && is_string($data[$field])) {
+                $data[$field] = $this->toMongoDateTime($data[$field]);
+            }
+        }
+        
+        // Handle nested objects
+        if (isset($data['metadata']) && is_array($data['metadata'])) {
+            $data['metadata'] = $this->prepareForMongoDB($data['metadata']);
+        }
+        
+        if (isset($data['customer']) && is_array($data['customer'])) {
+            $data['customer'] = $this->prepareForMongoDB($data['customer']);
+        }
+        
+        if (isset($data['authorization']) && is_array($data['authorization'])) {
+            $data['authorization'] = $this->prepareForMongoDB($data['authorization']);
+        }
+        
+        // Convert amount to structured format
+        if (isset($data['amount']) && is_numeric($data['amount'])) {
+            $amount = $data['amount'];
+            $data['amount'] = $this->formatAmountForMongoDB($amount);
+            // Keep original for backward compatibility
+            $data['amount_raw'] = $amount;
+        }
+        
+        return $data;
+    }
+
+    /**
      * ---------------------------------------------------------
      * Transactions
      * ---------------------------------------------------------
@@ -75,7 +143,7 @@ class PaystackService
             'reference'    => $reference,
             'callback_url' => $data['callback_url'] 
                 ?? config('app.url') . '/api/payment/callback',
-            'metadata'     => $data['metadata'] ?? [],
+            'metadata'     => $this->prepareMetadataForPaystack($data['metadata'] ?? []),
             'channels'     => $data['channels'] ?? [
                 'card',
                 'bank',
@@ -86,7 +154,13 @@ class PaystackService
             ],
         ]);
 
-        return $this->handleResponse($response);
+        $responseData = $this->handleResponse($response);
+        
+        // Add MongoDB compatible timestamps
+        $responseData['created_at'] = Carbon::now();
+        $responseData['reference'] = $reference;
+        
+        return $responseData;
     }
 
     /**
@@ -98,7 +172,14 @@ class PaystackService
         $response = $this->client()
             ->get("/transaction/verify/{$reference}");
 
-        return $this->handleResponse($response);
+        $data = $this->handleResponse($response);
+        
+        // Prepare data for MongoDB storage
+        if (!empty($data)) {
+            $data = $this->prepareForMongoDB($data);
+        }
+        
+        return $data;
     }
 
     /**
@@ -110,7 +191,14 @@ class PaystackService
         $response = $this->client()
             ->get("/transaction/{$reference}");
 
-        return $this->handleResponse($response);
+        $data = $this->handleResponse($response);
+        
+        // Prepare data for MongoDB storage
+        if (!empty($data)) {
+            $data = $this->prepareForMongoDB($data);
+        }
+        
+        return $data;
     }
 
     /**
@@ -126,7 +214,17 @@ class PaystackService
             'page'    => $page,
         ]);
 
-        return $this->handleResponse($response);
+        $data = $this->handleResponse($response);
+        
+        // Prepare each transaction for MongoDB storage
+        if (isset($data['data']) && is_array($data['data'])) {
+            $data['data'] = array_map(
+                [$this, 'prepareForMongoDB'],
+                $data['data']
+            );
+        }
+        
+        return $data;
     }
 
     /**
@@ -148,7 +246,16 @@ class PaystackService
             'description' => $data['description'] ?? null,
         ]);
 
-        return $this->handleResponse($response);
+        $planData = $this->handleResponse($response);
+        
+        // Add MongoDB compatible structure
+        if (!empty($planData)) {
+            $planData = $this->prepareForMongoDB($planData);
+            $planData['plan_code'] = $planData['plan_code'] ?? $planData['code'] ?? null;
+            $planData['created_at'] = Carbon::now();
+        }
+        
+        return $planData;
     }
 
     /**
@@ -163,7 +270,19 @@ class PaystackService
             'authorization' => $data['authorization_code'],
         ]);
 
-        return $this->handleResponse($response);
+        $subscriptionData = $this->handleResponse($response);
+        
+        // Prepare for MongoDB storage
+        if (!empty($subscriptionData)) {
+            $subscriptionData = $this->prepareForMongoDB($subscriptionData);
+            $subscriptionData['customer_code'] = $data['customer_code'];
+            $subscriptionData['plan_code'] = $data['plan_code'];
+            $subscriptionData['authorization_code'] = $data['authorization_code'];
+            $subscriptionData['created_at'] = Carbon::now();
+            $subscriptionData['status'] = 'active';
+        }
+        
+        return $subscriptionData;
     }
 
     /**
@@ -182,7 +301,140 @@ class PaystackService
             ]
         );
 
-        return $this->handleResponse($response);
+        $data = $this->handleResponse($response);
+        
+        // Add MongoDB compatible data
+        if (!empty($data)) {
+            $data['disabled_at'] = Carbon::now();
+            $data['subscription_code'] = $code;
+            $data['status'] = 'cancelled';
+        }
+        
+        return $data;
+    }
+
+    /**
+     * Get subscription details
+     */
+    public function getSubscription(string $code): array
+    {
+        /** @var Response $response */
+        $response = $this->client()->get("/subscription/{$code}");
+        
+        $data = $this->handleResponse($response);
+        
+        // Prepare for MongoDB storage
+        if (!empty($data)) {
+            $data = $this->prepareForMongoDB($data);
+        }
+        
+        return $data;
+    }
+
+    /**
+     * List subscriptions
+     */
+    public function listSubscriptions(
+        int $perPage = 50,
+        int $page = 1,
+        ?string $customer = null
+    ): array {
+        $params = [
+            'perPage' => $perPage,
+            'page'    => $page,
+        ];
+        
+        if ($customer) {
+            $params['customer'] = $customer;
+        }
+        
+        /** @var Response $response */
+        $response = $this->client()->get('/subscription', $params);
+        
+        $data = $this->handleResponse($response);
+        
+        // Prepare each subscription for MongoDB storage
+        if (isset($data['data']) && is_array($data['data'])) {
+            $data['data'] = array_map(
+                [$this, 'prepareForMongoDB'],
+                $data['data']
+            );
+        }
+        
+        return $data;
+    }
+
+    /**
+     * ---------------------------------------------------------
+     * Customers
+     * ---------------------------------------------------------
+     */
+
+    /**
+     * Create customer
+     */
+    public function createCustomer(array $data): array
+    {
+        /** @var Response $response */
+        $response = $this->client()->post('/customer', [
+            'email' => $data['email'],
+            'first_name' => $data['first_name'] ?? null,
+            'last_name' => $data['last_name'] ?? null,
+            'phone' => $data['phone'] ?? null,
+            'metadata' => $this->prepareMetadataForPaystack($data['metadata'] ?? []),
+        ]);
+
+        $customerData = $this->handleResponse($response);
+        
+        // Prepare for MongoDB storage
+        if (!empty($customerData)) {
+            $customerData = $this->prepareForMongoDB($customerData);
+            $customerData['created_at'] = Carbon::now();
+        }
+        
+        return $customerData;
+    }
+
+    /**
+     * Get customer
+     */
+    public function getCustomer(string $code): array
+    {
+        /** @var Response $response */
+        $response = $this->client()->get("/customer/{$code}");
+        
+        $data = $this->handleResponse($response);
+        
+        // Prepare for MongoDB storage
+        if (!empty($data)) {
+            $data = $this->prepareForMongoDB($data);
+        }
+        
+        return $data;
+    }
+
+    /**
+     * List customers
+     */
+    public function listCustomers(int $perPage = 50, int $page = 1): array
+    {
+        /** @var Response $response */
+        $response = $this->client()->get('/customer', [
+            'perPage' => $perPage,
+            'page'    => $page,
+        ]);
+        
+        $data = $this->handleResponse($response);
+        
+        // Prepare each customer for MongoDB storage
+        if (isset($data['data']) && is_array($data['data'])) {
+            $data['data'] = array_map(
+                [$this, 'prepareForMongoDB'],
+                $data['data']
+            );
+        }
+        
+        return $data;
     }
 
     /**
@@ -192,14 +444,14 @@ class PaystackService
      */
 
     /**
-     * Generate unique payment reference
+     * Generate unique payment reference with MongoDB compatibility
      */
     public function generateReference(): string
     {
         return 'PAY_' .
             strtoupper(Str::random(10)) .
             '_' .
-            time();
+            Carbon::now()->timestamp;
     }
 
     /**
@@ -224,5 +476,68 @@ class PaystackService
         );
 
         return hash_equals($computed, $signature);
+    }
+
+    /**
+     * Prepare metadata for Paystack API (removes MongoDB specific types)
+     */
+    private function prepareMetadataForPaystack(array $metadata): array
+    {
+        $cleanMetadata = [];
+        
+        foreach ($metadata as $key => $value) {
+            if ($value instanceof Carbon) {
+                $cleanMetadata[$key] = $value->format('Y-m-d H:i:s');
+            } elseif (is_array($value)) {
+                $cleanMetadata[$key] = $this->prepareMetadataForPaystack($value);
+            } else {
+                $cleanMetadata[$key] = $value;
+            }
+        }
+        
+        return $cleanMetadata;
+    }
+
+    /**
+     * Convert Carbon date to formatted string for API responses
+     */
+    public function formatDateForResponse($date): ?string
+    {
+        if ($date instanceof Carbon) {
+            return $date->format('Y-m-d H:i:s');
+        }
+        
+        if (is_string($date)) {
+            return $date;
+        }
+        
+        return null;
+    }
+
+    /**
+     * Get formatted transaction amount for display
+     */
+    public function formatAmountForDisplay(array $amountData): string
+    {
+        $value = $amountData['value'] ?? $amountData['amount_raw'] ?? 0;
+        $currency = $amountData['currency'] ?? 'NGN';
+        
+        return number_format($value, 2) . ' ' . $currency;
+    }
+
+    /**
+     * Get transaction amount in kobo (for Paystack API)
+     */
+    public function toKobo(float $amount): int
+    {
+        return (int) ($amount * 100);
+    }
+
+    /**
+     * Convert kobo to naira
+     */
+    public function fromKobo(int $kobo): float
+    {
+        return $kobo / 100;
     }
 }
