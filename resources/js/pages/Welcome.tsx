@@ -24,7 +24,7 @@ const BlogsiteLogo: React.FC = () => (
       y="50%"
       dominantBaseline="middle"
       textAnchor="middle"
-      fontSize="32"
+      fontSize="28"
       fontWeight="bold"
       fill="currentColor"
       fontFamily="system-ui, -apple-system, sans-serif"
