@@ -6,7 +6,7 @@ RUN apt-get update && apt-get install -y \
     git curl zip unzip libzip-dev libpng-dev \
     libonig-dev libxml2-dev pkg-config \
     libssl-dev ca-certificates openssl \
-    libcurl4-openssl-dev \
+    libcurl4-openssl-dev libsqlite3-dev \
     && update-ca-certificates --fresh \
     && rm -rf /var/lib/apt/lists/*
 
