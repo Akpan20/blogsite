@@ -65,5 +65,25 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->throttleApi();
     })
+
+    ->withExceptions(function (Exceptions $exceptions): void {
+        $exceptions->render(function (\Illuminate\Auth\AuthenticationException $e, \Illuminate\Http\Request $request) {
+            if ($request->is('api/*') || $request->expectsJson()) {
+                return response()->json(['message' => 'Unauthenticated.'], 401);
+            }
+        });
+
+        // Temporary - log full trace for RuntimeException
+        $exceptions->render(function (\RuntimeException $e, \Illuminate\Http\Request $request) {
+            return response()->json([
+                'message' => $e->getMessage(),
+                'trace'   => collect($e->getTrace())->take(5)->map(fn($t) => [
+                    'file' => $t['file'] ?? '',
+                    'line' => $t['line'] ?? '',
+                    'function' => $t['function'] ?? '',
+                ]),
+            ], 500);
+        });
+    })
     
     ->create();

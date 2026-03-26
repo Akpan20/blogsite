@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use Illuminate\Support\Str;
 use App\Models\Tag;
+use App\Models\Post;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Validator;
 
@@ -14,21 +15,17 @@ class TagController extends Controller
     {
         $query = Tag::query();
 
-        // Get popular tags
         if ($request->boolean('popular')) {
             $limit = $request->input('limit', 10);
-            $query->popular($limit);
+            $query->orderByDesc('usage_count')->limit($limit);
         } else {
-            $query->withPostsCount()->orderBy('name');
+            $query->orderBy('name');
         }
 
-        // Search tags
         if ($request->has('search')) {
-            $search = $request->search;
-            $query->where('name', 'like', "%{$search}%");
+            $query->where('name', 'regexp', '/' . $request->search . '/i');
         }
 
-        // Paginate or get all
         if ($request->boolean('paginate')) {
             $tags = $query->paginate($request->input('per_page', 50));
         } else {
@@ -41,40 +38,39 @@ class TagController extends Controller
     public function store(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'required|string|max:255',
-            'slug' => 'nullable|string|unique:tags,slug',
+            'name'        => 'required|string|max:255',
+            'slug'        => 'nullable|string',
             'description' => 'nullable|string',
-            'color' => 'nullable|string|size:7',
+            'color'       => 'nullable|string|size:7',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
         }
 
-        // Prepare data
-        $data = $request->only(['name', 'description', 'color']);
-        
-        // If slug is provided, use it; otherwise generate from name
-        if ($request->filled('slug')) {
-            $data['slug'] = $request->slug;
-        } else {
-            $data['slug'] = Str::slug($request->name);
+        $data         = $request->only(['name', 'description', 'color']);
+        $data['slug'] = $request->filled('slug')
+            ? $request->slug
+            : Str::slug($request->name);
+
+        // Check slug uniqueness manually (MongoDB doesn't support unique validation via rules)
+        if (Tag::where('slug', $data['slug'])->exists()) {
+            return response()->json(['errors' => ['slug' => ['Slug already taken.']]], 422);
         }
 
-        // Find existing tag by slug or create a new one
-        $tag = Tag::firstOrCreate(
-            ['slug' => $data['slug']],
-            $data
-        );
+        $tag = Tag::firstOrCreate(['slug' => $data['slug']], $data);
 
         return response()->json($tag, 201);
     }
 
     public function show($slug)
     {
-        $tag = Tag::where('slug', $slug)
-            ->withPostsCount()
-            ->firstOrFail();
+        $tag = Tag::where('slug', $slug)->firstOrFail();
+
+        // Count published posts for this tag
+        $tag->posts_count = Post::where('status', 'published')
+            ->whereIn('_id', $tag->posts()->pluck('_id')->toArray())
+            ->count();
 
         return response()->json($tag);
     }
@@ -82,14 +78,20 @@ class TagController extends Controller
     public function update(Request $request, Tag $tag)
     {
         $validator = Validator::make($request->all(), [
-            'name' => 'string|max:255',
-            'slug' => 'string|unique:tags,slug,' . $tag->id,
+            'name'        => 'string|max:255',
             'description' => 'nullable|string',
-            'color' => 'nullable|string|size:7',
+            'color'       => 'nullable|string|size:7',
         ]);
 
         if ($validator->fails()) {
             return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        // Check slug uniqueness if slug is being changed
+        if ($request->filled('slug') && $request->slug !== $tag->slug) {
+            if (Tag::where('slug', $request->slug)->exists()) {
+                return response()->json(['errors' => ['slug' => ['Slug already taken.']]], 422);
+            }
         }
 
         $tag->update($request->all());
@@ -99,7 +101,7 @@ class TagController extends Controller
 
     public function destroy(Tag $tag)
     {
-        // Detach from all posts
+        // MongoDB safe detach
         $tag->posts()->detach();
         $tag->delete();
 
@@ -111,9 +113,8 @@ class TagController extends Controller
         $tag = Tag::where('slug', $slug)->firstOrFail();
 
         $posts = $tag->posts()
-            ->published()
+            ->where('status', 'published')
             ->with(['user', 'category', 'tags'])
-            ->withCount(['comments', 'likes'])
             ->latest('published_at')
             ->paginate($request->input('per_page', 15));
 
@@ -122,46 +123,46 @@ class TagController extends Controller
 
     /**
      * Get tag cloud with weighted font sizes
+     * Fixed: withCount + subquery not supported in MongoDB
      */
     public function cloud(Request $request)
     {
         $limit = $request->input('limit', 50);
 
-        $tags = Tag::query()
-            ->withCount(['posts as posts_count' => function ($q) {
-                $q->published();
-            }])
-            ->where('posts_count', '>', 0)
-            ->orderByDesc('posts_count')
-            ->limit($limit)
-            ->get(['id', 'name', 'slug', 'color', 'posts_count']);
+        // Use usage_count stored on the tag directly
+        $tags = Tag::where('usage_count', '>', 0)
+            ->orderByDesc('usage_count')
+            ->limit((int) $limit)
+            ->get(['_id', 'name', 'slug', 'color', 'usage_count']);
 
         return response()->json($tags);
     }
 
     /**
      * Get tag suggestions for autocomplete
+     * Fixed: 'like' → 'regexp' for MongoDB
      */
     public function suggestions(Request $request)
     {
         $query = $request->input('query', '');
 
-        $tags = Tag::where('name', 'like', "%{$query}%")
-            ->withCount(['posts' => function ($q) {
-                $q->where('status', 'published');
-            }])
-            ->orderByDesc('posts_count')
+        $tags = Tag::where('name', 'regexp', '/' . $query . '/i')
+            ->orderByDesc('usage_count')
             ->limit(10)
-            ->get();
+            ->get(['_id', 'name', 'slug', 'color', 'usage_count']);
 
         return response()->json($tags);
     }
 
+    /**
+     * Merge two tags
+     * Fixed: syncWithoutDetaching → manual attach loop
+     */
     public function merge(Request $request)
     {
         $validator = Validator::make($request->all(), [
-            'source_tag_id' => 'required|exists:tags,id',
-            'target_tag_id' => 'required|exists:tags,id',
+            'source_tag_id' => 'required',
+            'target_tag_id' => 'required',
         ]);
 
         if ($validator->fails()) {
@@ -172,19 +173,26 @@ class TagController extends Controller
         $targetTag = Tag::findOrFail($request->target_tag_id);
 
         // Get all posts from source tag
-        $postIds = $sourceTag->posts()->pluck('post_id');
+        $postIds = $sourceTag->posts()->pluck('_id')->toArray();
 
-        // Attach to target tag (will skip duplicates due to unique constraint)
+        // Attach to target tag — skip if already attached
         foreach ($postIds as $postId) {
-            $targetTag->posts()->syncWithoutDetaching($postId);
+            $alreadyAttached = \DB::connection('mongodb')
+                ->collection('post_tag')
+                ->where('post_id', (string) $postId)
+                ->where('tag_id', (string) $targetTag->id)
+                ->exists();
+
+            if (!$alreadyAttached) {
+                $targetTag->posts()->attach($postId);
+            }
         }
 
-        // Delete source tag
         $sourceTag->delete();
 
         return response()->json([
-            'message' => 'Tags merged successfully',
-            'target_tag' => $targetTag->fresh()->load('posts'),
+            'message'    => 'Tags merged successfully',
+            'target_tag' => $targetTag->fresh(),
         ]);
     }
 }

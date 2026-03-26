@@ -3,66 +3,91 @@
 namespace App\Models;
 
 use Illuminate\Database\Eloquent\Factories\HasFactory;
-use MongoDB\Laravel\Eloquent\Model;                     // <-- Change base class
-use MongoDB\Laravel\Relations\BelongsToMany;            // <-- Use MongoDB relationship
+use MongoDB\Laravel\Eloquent\Model;
+use MongoDB\Laravel\Relations\BelongsToMany;
 use Illuminate\Support\Str;
 
 class Tag extends Model
 {
     use HasFactory;
 
-    // Optional: set the collection name (defaults to 'tags')
-    // protected $collection = 'tags';
+    protected $connection = 'mongodb';
+    protected $collection = 'tags';
 
     protected $fillable = [
         'name',
         'slug',
         'description',
         'color',
+        'usage_count',
     ];
 
-    /**
-     * The posts that belong to this tag.
-     */
+    protected $casts = [
+        'usage_count' => 'integer',
+        'created_at'  => 'datetime',
+        'updated_at'  => 'datetime',
+    ];
+
+    // ============================================
+    // RELATIONSHIPS
+    // ============================================
+
     public function posts(): BelongsToMany
     {
         return $this->belongsToMany(Post::class, 'post_tag')
             ->withTimestamps();
     }
 
-    // Scopes
-    public function scopePopular($query, $limit = 10)
+    // ============================================
+    // SCOPES
+    // Fixed: withCount/having not supported in MongoDB
+    // Use stored usage_count field instead
+    // ============================================
+
+    public function scopePopular($query, int $limit = 10)
     {
-        return $query->withCount(['posts' => function ($q) {
-                $q->where('status', 'published');
-            }])
-            ->having('posts_count', '>', 0)
-            ->orderByDesc('posts_count')
+        return $query->where('usage_count', '>', 0)
+            ->orderByDesc('usage_count')
+            ->limit($limit);
+    }
+
+    public function scopeCloud($query, int $limit = 50)
+    {
+        return $query->where('usage_count', '>', 0)
+            ->orderByDesc('usage_count')
             ->limit($limit);
     }
 
     public function scopeWithPostsCount($query)
     {
-        return $query->withCount(['posts' => function ($q) {
-            $q->where('status', 'published');
-        }]);
+        // No-op in MongoDB — usage_count is stored directly on the tag
+        // Just return the query as-is so calling code doesn't break
+        return $query;
     }
 
     public function scopePublished($query)
     {
-        return $query->whereHas('posts', function ($q) {
-            $q->where('status', 'published');
-        });
+        // Return tags that have at least one post (usage_count > 0)
+        return $query->where('usage_count', '>', 0);
     }
 
-    // Methods
+    public function scopeSearch($query, string $term)
+    {
+        // MongoDB uses regexp instead of LIKE
+        return $query->where('name', 'regexp', '/' . $term . '/i');
+    }
+
+    // ============================================
+    // METHODS
+    // ============================================
+
     public static function findOrCreateByName(string $name): self
     {
         $slug = Str::slug($name);
-        
+
         return static::firstOrCreate(
             ['slug' => $slug],
-            ['name' => $name]
+            ['name' => $name, 'usage_count' => 0]
         );
     }
 
@@ -80,7 +105,28 @@ class Tag extends Model
         return collect($tags)->pluck('id')->toArray();
     }
 
-    // Auto-generate slug
+    /**
+     * Increment usage count when attached to a post
+     */
+    public function incrementUsage(): void
+    {
+        $this->increment('usage_count');
+    }
+
+    /**
+     * Decrement usage count when detached from a post
+     */
+    public function decrementUsage(): void
+    {
+        if ($this->usage_count > 0) {
+            $this->decrement('usage_count');
+        }
+    }
+
+    // ============================================
+    // BOOT
+    // ============================================
+
     protected static function boot()
     {
         parent::boot();
@@ -88,6 +134,10 @@ class Tag extends Model
         static::creating(function ($tag) {
             if (empty($tag->slug)) {
                 $tag->slug = Str::slug($tag->name);
+            }
+            // Ensure usage_count defaults to 0
+            if (!isset($tag->usage_count)) {
+                $tag->usage_count = 0;
             }
         });
 
