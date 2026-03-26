@@ -11,8 +11,8 @@ import { SEOHead } from '@/components/seo/SEOHead';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
-// Inline Terry Olise's Blog Logo component (name must be valid JS identifier)
-const TerryOlisesBlog: React.FC = () => (
+// Inline BlogsiteLogo component
+const BlogsiteLogo: React.FC = () => (
   <svg
     className="mx-auto w-full max-w-xs translate-y-0 opacity-100 transition-all duration-1000 lg:max-w-md dark:text-[#F61500] text-[#F53003]"
     viewBox="0 0 200 60"
@@ -60,7 +60,7 @@ export default function Welcome() {
   return (
     <>
       <SEOHead
-        title="Welcome to TerryOlise's Blog"
+        title="Welcome to Blogsite"
         description="Publish distraction-free. Reach readers who care."
       />
       <div className="min-h-screen bg-[#FDFDFC] text-[#1b1b18] dark:bg-[#0a0a0a] dark:text-[#EDEDEC]">
@@ -112,7 +112,7 @@ export default function Welcome() {
 
           {/* Right column */}
           <div className="relative w-full overflow-hidden rounded-t-2xl bg-[#fff2f2] lg:w-auto lg:max-w-xl lg:rounded-r-2xl lg:rounded-tl-none dark:bg-[#1D0002]">
-            <TerryOlisesBlogLogo />
+            <BlogsiteLogo />
             <div className="absolute inset-0 bg-linear-to-br from-[#f53003]/5 to-transparent pointer-events-none" />
             <div className="pointer-events-none absolute inset-0 rounded-t-2xl shadow-[inset_0_0_0_1px_rgba(26,26,0,0.16)] dark:rounded-r-2xl dark:shadow-[inset_0_0_0_1px_#fffaed2d] lg:rounded-tl-none" />
           </div>
