@@ -47,5 +47,23 @@ return Application::configure(basePath: dirname(__DIR__))
 
         $middleware->throttleApi();
     })
+
+    ->withMiddleware(function (Middleware $middleware): void {
+
+        // Trust Render's load balancer proxy
+        $middleware->trustProxies(at: '*');
+
+        $middleware->api(prepend: [
+            \Laravel\Sanctum\Http\Middleware\EnsureFrontendRequestsAreStateful::class,
+        ]);
+
+        $middleware->alias([
+            'premium' => \App\Http\Middleware\CheckPremiumAccess::class,
+            'admin'   => \App\Http\Middleware\CheckAdminAccess::class,
+            'auth'    => \App\Http\Middleware\Authenticate::class,
+        ]);
+
+        $middleware->throttleApi();
+    })
     
     ->create();
