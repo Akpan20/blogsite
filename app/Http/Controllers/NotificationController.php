@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers;
 
 use Illuminate\Http\Request;
@@ -8,16 +7,14 @@ use App\Http\Resources\NotificationResource;
 
 class NotificationController extends Controller
 {
-    /**
-     * Get a paginated list of all notifications for the authenticated user.
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
     public function index(Request $request): JsonResponse
     {
         $user = $request->user();
 
+        // Laravel's DatabaseNotification model works with MongoDB
+        // as long as the notifications collection uses the MongoDB driver.
+        // Ensure DatabaseNotification extends MongoDB\Laravel\Eloquent\Model
+        // or that your User model uses the MongoDB-compatible HasNotifications trait.
         $notifications = $user->notifications()
             ->orderBy('created_at', 'desc')
             ->paginate($request->input('per_page', 20));
@@ -25,20 +22,14 @@ class NotificationController extends Controller
         return response()->json([
             'data' => NotificationResource::collection($notifications),
             'meta' => [
-                'total' => $notifications->total(),
-                'per_page' => $notifications->perPage(),
+                'total'        => $notifications->total(),
+                'per_page'     => $notifications->perPage(),
                 'current_page' => $notifications->currentPage(),
-                'last_page' => $notifications->lastPage(),
+                'last_page'    => $notifications->lastPage(),
             ],
         ]);
     }
 
-    /**
-     * Get a paginated list of unread notifications.
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
     public function unread(Request $request): JsonResponse
     {
         $user = $request->user();
@@ -50,42 +41,28 @@ class NotificationController extends Controller
         return response()->json([
             'data' => NotificationResource::collection($notifications),
             'meta' => [
-                'total' => $notifications->total(),
+                'total'        => $notifications->total(),
+                // Re-query for accurate unread count — avoids stale paginator state
                 'unread_count' => $user->unreadNotifications()->count(),
-                'per_page' => $notifications->perPage(),
+                'per_page'     => $notifications->perPage(),
                 'current_page' => $notifications->currentPage(),
-                'last_page' => $notifications->lastPage(),
+                'last_page'    => $notifications->lastPage(),
             ],
         ]);
     }
 
-    /**
-     * Get a single notification by ID.
-     *
-     * @param string $id
-     * @param Request $request
-     * @return JsonResponse
-     */
     public function show(string $id, Request $request): JsonResponse
     {
         $user = $request->user();
 
+        // MongoDB notification IDs are UUIDs stored as strings — no cast needed
         $notification = $user->notifications()
             ->where('id', $id)
             ->firstOrFail();
 
-        return response()->json([
-            'data' => new NotificationResource($notification),
-        ]);
+        return response()->json(['data' => new NotificationResource($notification)]);
     }
 
-    /**
-     * Mark a specific notification as read.
-     *
-     * @param string $id
-     * @param Request $request
-     * @return JsonResponse
-     */
     public function markAsRead(string $id, Request $request): JsonResponse
     {
         $user = $request->user();
@@ -100,34 +77,17 @@ class NotificationController extends Controller
 
         return response()->json([
             'message' => 'Notification marked as read.',
-            'data' => new NotificationResource($notification),
+            'data'    => new NotificationResource($notification),
         ]);
     }
 
-    /**
-     * Mark all unread notifications as read.
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
     public function markAllRead(Request $request): JsonResponse
     {
-        $user = $request->user();
+        $request->user()->unreadNotifications->markAsRead();
 
-        $user->unreadNotifications->markAsRead();
-
-        return response()->json([
-            'message' => 'All notifications marked as read.',
-        ]);
+        return response()->json(['message' => 'All notifications marked as read.']);
     }
 
-    /**
-     * Mark a specific notification as unread.
-     *
-     * @param string $id
-     * @param Request $request
-     * @return JsonResponse
-     */
     public function markAsUnread(string $id, Request $request): JsonResponse
     {
         $user = $request->user();
@@ -136,22 +96,16 @@ class NotificationController extends Controller
             ->where('id', $id)
             ->firstOrFail();
 
+        // Directly nullify read_at — markAsUnread() doesn't exist in Laravel core
         $notification->read_at = null;
         $notification->save();
 
         return response()->json([
             'message' => 'Notification marked as unread.',
-            'data' => new NotificationResource($notification),
+            'data'    => new NotificationResource($notification),
         ]);
     }
 
-    /**
-     * Delete a specific notification.
-     *
-     * @param string $id
-     * @param Request $request
-     * @return JsonResponse
-     */
     public function destroy(string $id, Request $request): JsonResponse
     {
         $user = $request->user();
@@ -162,26 +116,16 @@ class NotificationController extends Controller
 
         $notification->delete();
 
-        return response()->json([
-            'message' => 'Notification deleted.',
-        ]);
+        return response()->json(['message' => 'Notification deleted.']);
     }
 
-    /**
-     * Delete all notifications (or optionally only read notifications).
-     *
-     * @param Request $request
-     * @return JsonResponse
-     */
     public function destroyAll(Request $request): JsonResponse
     {
-        $user = $request->user();
-
-        // By default, delete all notifications.
+        $user  = $request->user();
         $query = $user->notifications();
 
-        // Allow filtering: ?type=read or ?type=unread
         if ($request->type === 'read') {
+            // whereNotNull / whereNull work identically in laravel-mongodb
             $query->whereNotNull('read_at');
         } elseif ($request->type === 'unread') {
             $query->whereNull('read_at');
@@ -190,8 +134,6 @@ class NotificationController extends Controller
         $count = $query->count();
         $query->delete();
 
-        return response()->json([
-            'message' => "{$count} notifications deleted.",
-        ]);
+        return response()->json(['message' => "{$count} notifications deleted."]);
     }
 }

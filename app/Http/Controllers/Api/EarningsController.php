@@ -1,12 +1,10 @@
 <?php
-
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
 use App\Models\Payment;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
-use Illuminate\Support\Facades\DB;
 use Carbon\Carbon;
 
 class EarningsController extends Controller
@@ -16,92 +14,100 @@ class EarningsController extends Controller
         $user = Auth::user();
         $now = Carbon::now();
 
-        // 1. Calculate All-Time Earnings
-        $totalAllTime = Payment::where('user_id', $user->id)
-            ->where('status', 'success')
+        // MongoDB doesn't support DB::raw SQL expressions.
+        // Pull relevant records and aggregate in PHP instead.
+
+        $baseQuery = fn() => Payment::where('user_id', (string) $user->_id)
+            ->where('status', 'success');
+
+        // 1. All-Time Earnings
+        $totalAllTime = $baseQuery()->sum('amount');
+
+        // 2. This Month
+        $totalThisMonth = $baseQuery()
+            ->whereBetween('paid_at', [
+                $now->copy()->startOfMonth(),
+                $now->copy()->endOfMonth(),
+            ])
             ->sum('amount');
 
-        // 2. Calculate This Month's Earnings
-        $totalThisMonth = Payment::where('user_id', $user->id)
-            ->where('status', 'success')
-            ->whereYear('paid_at', $now->year)
-            ->whereMonth('paid_at', $now->month)
+        // 3. Last Month
+        $lastMonth = $now->copy()->subMonth();
+        $totalLastMonth = $baseQuery()
+            ->whereBetween('paid_at', [
+                $lastMonth->copy()->startOfMonth(),
+                $lastMonth->copy()->endOfMonth(),
+            ])
             ->sum('amount');
 
-        // 3. Calculate Last Month (for growth percentage)
-        $totalLastMonth = Payment::where('user_id', $user->id)
-            ->where('status', 'success')
-            ->whereYear('paid_at', $now->copy()->subMonth()->year)
-            ->whereMonth('paid_at', $now->copy()->subMonth()->month)
-            ->sum('amount');
+        // 4. Growth percentage
+        $growth = $totalLastMonth > 0
+            ? (($totalThisMonth - $totalLastMonth) / $totalLastMonth) * 100
+            : 0;
 
-        // 4. Calculate Percentage Growth
-        $growth = 0;
-        if ($totalLastMonth > 0) {
-            $growth = (($totalThisMonth - $totalLastMonth) / $totalLastMonth) * 100;
-        }
-
-        // 5. Recent Transaction History (Last 5)
-        $recentPayments = Payment::where('user_id', $user->id)
-            ->with('subscription') // Load the relation you defined
-            ->latest('paid_at')
+        // 5. Recent transactions
+        $recentPayments = $baseQuery()
+            ->with('subscription')
+            ->orderBy('paid_at', 'desc')
             ->limit(5)
             ->get();
 
         return response()->json([
-            'status' => 'success',
+            'status'  => 'success',
             'summary' => [
-                'total_all_time' => (float) $totalAllTime,
-                'this_month' => (float) $totalThisMonth,
-                'last_month' => (float) $totalLastMonth,
+                'total_all_time'    => (float) $totalAllTime,
+                'this_month'        => (float) $totalThisMonth,
+                'last_month'        => (float) $totalLastMonth,
                 'growth_percentage' => round($growth, 2),
-                'currency' => 'NGN',
+                'currency'          => 'NGN',
             ],
-            'recent_history' => $recentPayments->map(function ($payment) {
-                return [
-                    'reference' => $payment->reference,
-                    'amount' => $payment->amount,
-                    'status' => $payment->status,
-                    'date' => $payment->paid_at->toFormattedDateString(),
-                    'plan' => $payment->subscription->name ?? 'N/A',
-                ];
-            }),
+            'recent_history' => $recentPayments->map(fn($payment) => [
+                'reference' => $payment->reference,
+                'amount'    => $payment->amount,
+                'status'    => $payment->status,
+                'date'      => Carbon::parse($payment->paid_at)->toFormattedDateString(),
+                'plan'      => $payment->subscription->name ?? 'N/A',
+            ]),
         ]);
     }
 
     public function statistics(Request $request)
     {
         $user = Auth::user();
-        $year = $request->query('year', now()->year);
+        $year = (int) $request->query('year', now()->year);
 
-        // Fetch monthly sums for the chosen year
-        $monthlyEarnings = Payment::where('user_id', $user->id)
+        $startOfYear = Carbon::create($year)->startOfYear();
+        $endOfYear   = Carbon::create($year)->endOfYear();
+
+        // Fetch all matching payments for the year, aggregate in PHP
+        // MongoDB's $group with $month is available via raw aggregation,
+        // but laravel-mongodb's fluent builder handles this more reliably
+        // via PHP-side grouping for cross-driver compatibility.
+        $payments = Payment::where('user_id', (string) $user->_id)
             ->where('status', 'success')
-            ->whereYear('paid_at', $year)
-            ->select(
-                DB::raw('MONTH(paid_at) as month'),
-                DB::raw('SUM(amount) as total')
-            )
-            ->groupBy('month')
-            ->orderBy('month')
-            ->get()
-            ->pluck('total', 'month') // Creates [month_id => total]
-            ->all();
+            ->whereBetween('paid_at', [$startOfYear, $endOfYear])
+            ->get(['paid_at', 'amount']);
 
-        // Ensure all 12 months are represented, even if 0
+        // Group by month number in PHP
+        $monthlyEarnings = [];
+        foreach ($payments as $payment) {
+            $month = Carbon::parse($payment->paid_at)->month;
+            $monthlyEarnings[$month] = ($monthlyEarnings[$month] ?? 0) + $payment->amount;
+        }
+
+        // Ensure all 12 months are represented
         $chartData = [];
         for ($m = 1; $m <= 12; $m++) {
-            $monthName = Carbon::create()->month($m)->format('M');
             $chartData[] = [
-                'label' => $monthName,
+                'label' => Carbon::create()->month($m)->format('M'),
                 'value' => $monthlyEarnings[$m] ?? 0,
             ];
         }
 
         return response()->json([
-            'status' => 'success',
-            'year' => $year,
-            'chart_data' => $chartData
+            'status'     => 'success',
+            'year'       => $year,
+            'chart_data' => $chartData,
         ]);
     }
 }

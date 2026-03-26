@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers\Api;
 
 use App\Events\CommentDeleted;
@@ -17,12 +16,9 @@ use Illuminate\Support\Facades\Validator;
 
 class CommentController extends Controller
 {
-    /**
-     * Display a listing of comments for a post
-     */
     public function index(Request $request, Post $post): JsonResponse
     {
-        $comments = Comment::where('post_id', $post->id)
+        $comments = Comment::where('post_id', (string) $post->_id)
             ->rootComments()
             ->withReplies()
             ->orderBy('created_at', 'desc')
@@ -31,27 +27,25 @@ class CommentController extends Controller
         return response()->json($comments);
     }
 
-    /**
-     * Store a newly created comment
-     */
     public function store(Request $request, Post $post): JsonResponse
     {
         $validator = Validator::make($request->all(), [
-            'content' => 'required|string|max:2000',
-            'parent_id' => 'nullable|exists:comments,id',
+            'content'   => 'required|string|max:2000',
+            // exists rule works with laravel-mongodb using _id
+            'parent_id' => 'nullable|exists:comments,_id',
         ]);
 
         if ($validator->fails()) {
             return response()->json([
                 'message' => 'Validation failed',
-                'errors' => $validator->errors(),
+                'errors'  => $validator->errors(),
             ], 422);
         }
 
-        // If parent_id is provided, verify it belongs to the same post
         if ($request->parent_id) {
             $parentComment = Comment::findOrFail($request->parent_id);
-            if ($parentComment->post_id !== $post->id) {
+            // Cast both sides to string for ObjectId-safe comparison
+            if ((string) $parentComment->post_id !== (string) $post->_id) {
                 return response()->json([
                     'message' => 'Parent comment does not belong to this post',
                 ], 422);
@@ -59,15 +53,14 @@ class CommentController extends Controller
         }
 
         $comment = Comment::create([
-            'user_id' => Auth::id(),
-            'post_id' => $post->id,
-            'parent_id' => $request->parent_id,
-            'content' => $request->content,
+            'user_id'   => (string) Auth::id(),
+            'post_id'   => (string) $post->_id,
+            'parent_id' => $request->parent_id ? (string) $request->parent_id : null,
+            'content'   => $request->content,
         ]);
 
         $comment->load(['user', 'reactions']);
 
-        // Broadcast the new comment
         broadcast(new CommentPosted($comment))->toOthers();
 
         return response()->json([
@@ -79,25 +72,23 @@ class CommentController extends Controller
     public function guestStore(Request $request): JsonResponse
     {
         $validated = $request->validate([
-            'post_id' => 'required|exists:posts,id',
-            'content' => 'required|string|min:3|max:2000',
-            'name'    => 'required|string|max:100',
-            'email'   => 'nullable|email|max:255',
-            'parent_id' => 'nullable|exists:comments,id',
+            'post_id'   => 'required|exists:posts,_id',
+            'content'   => 'required|string|min:3|max:2000',
+            'name'      => 'required|string|max:100',
+            'email'     => 'nullable|email|max:255',
+            'parent_id' => 'nullable|exists:comments,_id',
         ]);
 
-        // Optional: check if post allows comments
         $post = Post::findOrFail($validated['post_id']);
-        // if (!$post->allows_comments) abort(403);
 
         $comment = Comment::create([
-            'post_id'    => $validated['post_id'],
-            'content'    => $validated['content'],
-            'name'       => $validated['name'],
-            'email'      => $validated['email'],
-            'parent_id'  => $validated['parent_id'] ?? null,
-            'approved'   => false,
-            'user_id'    => null,
+            'post_id'   => (string) $post->_id,
+            'content'   => $validated['content'],
+            'name'      => $validated['name'],
+            'email'     => $validated['email'] ?? null,
+            'parent_id' => isset($validated['parent_id']) ? (string) $validated['parent_id'] : null,
+            'approved'  => false,
+            'user_id'   => null,
         ]);
 
         $comment->load(['reactions']);
@@ -110,23 +101,16 @@ class CommentController extends Controller
         ], 201);
     }
 
-    /**
-     * Display the specified comment
-     */
     public function show(Comment $comment): JsonResponse
     {
         $comment->load(['user', 'reactions', 'replies.user', 'replies.reactions']);
-
         return response()->json($comment);
     }
 
-    /**
-     * Update the specified comment
-     */
     public function update(Request $request, Comment $comment): JsonResponse
     {
-        // Check if user owns the comment
-        if ($comment->user_id !== Auth::id()) {
+        // Cast both sides — Auth::id() returns a string in MongoDB context
+        if ((string) $comment->user_id !== (string) Auth::id()) {
             return response()->json([
                 'message' => 'Unauthorized to update this comment',
             ], 403);
@@ -139,19 +123,18 @@ class CommentController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'message' => 'Validation failed',
-                'errors' => $validator->errors(),
+                'errors'  => $validator->errors(),
             ], 422);
         }
 
         $comment->update([
-            'content' => $request->content,
+            'content'   => $request->content,
             'is_edited' => true,
             'edited_at' => now(),
         ]);
 
         $comment->load(['user', 'reactions']);
 
-        // Broadcast the update
         broadcast(new CommentUpdated($comment))->toOthers();
 
         return response()->json([
@@ -160,34 +143,24 @@ class CommentController extends Controller
         ]);
     }
 
-    /**
-     * Remove the specified comment
-     */
     public function destroy(Comment $comment): JsonResponse
     {
-        // Check if user owns the comment
-        if ($comment->user_id !== Auth::id()) {
+        if ((string) $comment->user_id !== (string) Auth::id()) {
             return response()->json([
                 'message' => 'Unauthorized to delete this comment',
             ], 403);
         }
 
-        $postId = $comment->post_id;
-        $commentId = $comment->id;
+        $postId    = (string) $comment->post_id;
+        $commentId = (string) $comment->_id;
 
         $comment->delete();
 
-        // Broadcast the deletion
         broadcast(new CommentDeleted($commentId, $postId))->toOthers();
 
-        return response()->json([
-            'message' => 'Comment deleted successfully',
-        ]);
+        return response()->json(['message' => 'Comment deleted successfully']);
     }
 
-    /**
-     * Toggle a reaction on a comment
-     */
     public function toggleReaction(Request $request, Comment $comment): JsonResponse
     {
         $validator = Validator::make($request->all(), [
@@ -197,47 +170,42 @@ class CommentController extends Controller
         if ($validator->fails()) {
             return response()->json([
                 'message' => 'Validation failed',
-                'errors' => $validator->errors(),
+                'errors'  => $validator->errors(),
             ], 422);
         }
 
-        $userId = Auth::id();
-        $type = $request->type;
+        $userId = (string) Auth::id();
+        $type   = $request->type;
 
         $existingReaction = CommentReaction::where('user_id', $userId)
-            ->where('comment_id', $comment->id)
+            ->where('comment_id', (string) $comment->_id)
             ->first();
 
         if ($existingReaction) {
             if ($existingReaction->type === $type) {
-                // Remove reaction if clicking the same type
                 $existingReaction->delete();
                 $message = 'Reaction removed';
             } else {
-                // Update to new reaction type
                 $existingReaction->update(['type' => $type]);
                 $message = 'Reaction updated';
             }
         } else {
-            // Create new reaction
             CommentReaction::create([
-                'user_id' => $userId,
-                'comment_id' => $comment->id,
-                'type' => $type,
+                'user_id'    => $userId,
+                'comment_id' => (string) $comment->_id,
+                'type'       => $type,
             ]);
             $message = 'Reaction added';
         }
 
-        // Reload comment to get updated reactions
         $comment->load('reactions');
 
-        // Broadcast the reaction update
         broadcast(new CommentReactionUpdated($comment))->toOthers();
 
         return response()->json([
-            'message' => $message,
+            'message'         => $message,
             'reactions_count' => $comment->reactions_count,
-            'user_reaction' => $comment->user_reaction,
+            'user_reaction'   => $comment->user_reaction,
         ]);
     }
 
@@ -246,28 +214,24 @@ class CommentController extends Controller
         $replies = $comment->replies()
             ->with(['user', 'reactions'])
             ->paginate(10);
-        
+
         return response()->json($replies);
     }
 
-    /**
-     * Get all reactions for a comment
-     */
     public function getReactions(Comment $comment): JsonResponse
     {
         $reactions = $comment->reactions()
-            ->with('user:id,name,email')
+            // In MongoDB, column-selection syntax uses field names directly
+            ->with('user:_id,name,email')
             ->get()
             ->groupBy('type')
-            ->map(function ($group) {
-                return [
-                    'count' => $group->count(),
-                    'users' => $group->map(fn($r) => [
-                        'id' => $r->user->id,
-                        'name' => $r->user->name,
-                    ])->values(),
-                ];
-            });
+            ->map(fn($group) => [
+                'count' => $group->count(),
+                'users' => $group->map(fn($r) => [
+                    'id'   => (string) $r->user->_id,
+                    'name' => $r->user->name,
+                ])->values(),
+            ]);
 
         return response()->json($reactions);
     }

@@ -5,6 +5,7 @@ namespace App\Http\Controllers\Api;
 use App\Http\Controllers\Controller;
 use App\Models\User;
 use App\Models\Payment;
+use App\Models\Follow;
 use Illuminate\Http\Request;
 use Illuminate\Support\Facades\Auth;
 use Illuminate\Support\Facades\Hash;
@@ -12,20 +13,13 @@ use Illuminate\Validation\Rules\Password;
 
 class UserController extends Controller
 {
-    /**
-     * Get the authenticated user.
-     */
     public function show(): \Illuminate\Http\JsonResponse
     {
         return response()->json(Auth::user());
     }
 
-    /**
-     * Update the authenticated user's profile information.
-     */
     public function updateProfile(Request $request): \Illuminate\Http\JsonResponse
     {
-        /** @var User $user */
         $user = Auth::user();
 
         $validated = $request->validate([
@@ -36,16 +30,12 @@ class UserController extends Controller
 
         return response()->json([
             'message' => 'Profile updated successfully',
-            'user'    => $user->refresh(), // or $user->fresh()
+            'user'    => $user->fresh(),
         ]);
     }
 
-    /**
-     * Update the authenticated user's password.
-     */
     public function updatePassword(Request $request): \Illuminate\Http\JsonResponse
     {
-        /** @var User $user */
         $user = Auth::user();
 
         $validated = $request->validate([
@@ -57,29 +47,17 @@ class UserController extends Controller
             'password' => Hash::make($validated['password']),
         ]);
 
-        // Optional: force logout from other devices
-        // Auth::guard('web')->logoutOtherDevices($validated['password']);
-
-        return response()->json([
-            'message' => 'Password updated successfully',
-        ]);
+        return response()->json(['message' => 'Password updated successfully']);
     }
 
-    /**
-     * Update the authenticated user's notification preferences.
-     *
-     * Requires migration: $table->json('preferences')->nullable();
-     */
     public function updateNotifications(Request $request): \Illuminate\Http\JsonResponse
     {
-        /** @var User $user */
         $user = Auth::user();
 
         $validated = $request->validate([
-            'email_notifications'    => ['boolean'],
-            'new_comment_alerts'     => ['boolean'],
-            'subscription_updates'   => ['boolean'],
-            // Add more preferences as needed
+            'email_notifications'  => ['boolean'],
+            'new_comment_alerts'   => ['boolean'],
+            'subscription_updates' => ['boolean'],
         ]);
 
         $current = $user->preferences ?? [];
@@ -99,47 +77,46 @@ class UserController extends Controller
         $userId = Auth::id();
         if (!$userId) return response()->json(['message' => 'Unauthenticated.'], 401);
 
-        $totalEarnings = Payment::where('user_id', $userId)
+        // MongoDB doesn't support whereMonth/whereYear — filter in PHP
+        $payments = Payment::where('user_id', $userId)
             ->where('status', 'success')
-            ->sum('amount') / 100;
-
-        $monthlyEarnings = Payment::where('user_id', $userId)
-            ->where('status', 'success')
-            ->whereMonth('paid_at', now()->month)
-            ->whereYear('paid_at', now()->year)
-            ->sum('amount') / 100;
-
-        $recentPayments = Payment::where('user_id', $userId)
-            ->where('status', 'success')
-            ->latest('paid_at')
-            ->take(5)
             ->get(['amount', 'currency', 'paid_at']);
 
+        $totalEarnings = $payments->sum('amount') / 100;
+
+        $monthlyEarnings = $payments->filter(function ($p) {
+            return $p->paid_at &&
+                $p->paid_at->month === now()->month &&
+                $p->paid_at->year === now()->year;
+        })->sum('amount') / 100;
+
+        $recentPayments = $payments->sortByDesc('paid_at')->take(5)->values();
+
         return response()->json([
-            'total_earnings' => round($totalEarnings, 2),
+            'total_earnings'   => round($totalEarnings, 2),
             'monthly_earnings' => round($monthlyEarnings, 2),
-            'recent_payments' => $recentPayments,
+            'recent_payments'  => $recentPayments,
         ]);
     }
 
     public function suggestions(Request $request)
     {
-        $limit = $request->input('limit', 5);
-        $currentUserId = Auth::id();
-        
-        // Get users that current user is NOT following
-        $suggestedUsers = User::where('id', '!=', $currentUserId)
-            ->whereNotIn('id', function($query) use ($currentUserId) {
-                $query->select('following_id')
-                    ->from('follows')
-                    ->where('follower_id', $currentUserId);
-            })
-            ->withCount(['followers', 'posts'])
-            ->orderByDesc('followers_count')
-            ->orderByDesc('posts_count')
+        $limit         = $request->input('limit', 5);
+        $currentUserId = (string) Auth::id();
+
+        // Get IDs of users already followed
+        $followingIds = Follow::where('follower_id', $currentUserId)
+            ->pluck('following_id')
+            ->map(fn($id) => (string) $id)
+            ->toArray();
+
+        $followingIds[] = $currentUserId;
+
+        $suggestedUsers = User::whereNotIn('_id', $followingIds)
+            ->orderByDesc('reputation_points')
             ->limit($limit)
-            ->get(['id', 'name', 'username', 'avatar', 'bio', 'reputation_points']);
-        
+            ->get(['_id', 'name', 'username', 'avatar', 'bio', 'reputation_points']);
+
         return response()->json($suggestedUsers);
     }
 }

@@ -1,5 +1,4 @@
 <?php
-
 namespace App\Http\Controllers\Api;
 
 use App\Http\Controllers\Controller;
@@ -16,7 +15,7 @@ class FollowController extends Controller
     {
         $currentUser = Auth::user();
 
-        if ($currentUser->id === $user->id) {
+        if ((string) $currentUser->_id === (string) $user->_id) {
             return response()->json([
                 'message' => 'You cannot follow yourself',
             ], 422);
@@ -30,9 +29,11 @@ class FollowController extends Controller
 
         $currentUser->follow($user);
 
+        $user->refresh();
+
         return response()->json([
-            'message' => 'Successfully followed user',
-            'is_following' => true,
+            'message'         => 'Successfully followed user',
+            'is_following'    => true,
             'followers_count' => $user->followers_count,
         ]);
     }
@@ -52,9 +53,11 @@ class FollowController extends Controller
 
         $currentUser->unfollow($user);
 
+        $user->refresh();
+
         return response()->json([
-            'message' => 'Successfully unfollowed user',
-            'is_following' => false,
+            'message'         => 'Successfully unfollowed user',
+            'is_following'    => false,
             'followers_count' => $user->followers_count,
         ]);
     }
@@ -66,7 +69,7 @@ class FollowController extends Controller
     {
         $currentUser = Auth::user();
 
-        if ($currentUser->id === $user->id) {
+        if ((string) $currentUser->_id === (string) $user->_id) {
             return response()->json([
                 'message' => 'You cannot follow yourself',
             ], 422);
@@ -74,17 +77,19 @@ class FollowController extends Controller
 
         if ($currentUser->isFollowing($user)) {
             $currentUser->unfollow($user);
-            $message = 'Successfully unfollowed user';
+            $message     = 'Successfully unfollowed user';
             $isFollowing = false;
         } else {
             $currentUser->follow($user);
-            $message = 'Successfully followed user';
+            $message     = 'Successfully followed user';
             $isFollowing = true;
         }
 
+        $user->refresh();
+
         return response()->json([
-            'message' => $message,
-            'is_following' => $isFollowing,
+            'message'         => $message,
+            'is_following'    => $isFollowing,
             'followers_count' => $user->followers_count,
         ]);
     }
@@ -96,25 +101,36 @@ class FollowController extends Controller
     {
         $currentUser = Auth::user();
 
-        // Get users that current user's following are following
-        $suggestions = User::whereHas('followers', function ($query) use ($currentUser) {
-            $query->whereIn('follower_id', $currentUser->following()->pluck('users.id'));
-        })
-        ->whereNotIn('id', $currentUser->following()->pluck('users.id'))
-        ->where('id', '!=', $currentUser->id)
-        ->select('id', 'name', 'username', 'avatar', 'bio', 'reputation_points')
-        ->withCount('followers')
-        ->orderBy('followers_count', 'desc')
-        ->limit(10)
-        ->get();
+        // Collect ObjectIds of users the current user already follows
+        $followingIds = $currentUser->following()
+            ->pluck('_id')
+            ->map(fn($id) => (string) $id)
+            ->toArray();
 
-        // If not enough suggestions, add users with high reputation
+        // Friends-of-friends: users followed by people the current user follows
+        $suggestions = User::whereIn(
+                'followers.follower_id',            // embedded or referenced field
+                $followingIds
+            )
+            ->whereNotIn('_id', $followingIds)
+            ->where('_id', '!=', (string) $currentUser->_id)
+            ->select('_id', 'name', 'username', 'avatar', 'bio', 'reputation_points')
+            ->withCount('followers')
+            ->orderBy('followers_count', 'desc')
+            ->limit(10)
+            ->get();
+
+        // Backfill with high-reputation users if fewer than 10 results
         if ($suggestions->count() < 10) {
-            $additional = User::whereNotIn('id', $currentUser->following()->pluck('users.id'))
-                ->where('id', '!=', $currentUser->id)
-                ->whereNotIn('id', $suggestions->pluck('id'))
+            $excludeIds = array_merge(
+                $followingIds,
+                $suggestions->pluck('_id')->map(fn($id) => (string) $id)->toArray(),
+                [(string) $currentUser->_id]
+            );
+
+            $additional = User::whereNotIn('_id', $excludeIds)
                 ->orderBy('reputation_points', 'desc')
-                ->select('id', 'name', 'username', 'avatar', 'bio', 'reputation_points')
+                ->select('_id', 'name', 'username', 'avatar', 'bio', 'reputation_points')
                 ->limit(10 - $suggestions->count())
                 ->get();
 
