@@ -273,11 +273,4 @@ class User extends Model implements
         }
         return true;
     }
-
-    public function createToken(string $name, array $abilities = ['*']): \Laravel\Sanctum\NewAccessToken
-    {
-        return $this->hasTokenOfType(PersonalAccessToken::class)
-            ? (new PersonalAccessToken())->createToken($this, $name, $abilities)
-            : parent::createToken($name, $abilities);
-    }
 }
