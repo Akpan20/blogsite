@@ -87,7 +87,7 @@ export default function PostDetail() {
     return (
       <>
         <Helmet>
-          <title>{post.title} | Your Blogsite</title>
+          <title>{post.title} | Your TerryOlise's Blog</title>
           <meta name="description" content={post.excerpt || 'Premium content — subscribe to read more'} />
         </Helmet>
         <div className="min-h-screen bg-slate-50 dark:bg-gray-950">
@@ -120,7 +120,7 @@ export default function PostDetail() {
     <>
       {/* ── SEO ─────────────────────────────────────────────────────────────── */}
       <Helmet>
-        <title>{post.title} | Your Blogsite</title>
+        <title>{post.title} | Your TerryOlise's Blog</title>
         <meta name="description" content={post.excerpt || post.content.slice(0, 160) + '...'} />
         <link rel="canonical" href={canonicalUrl} />
         <meta property="og:title"       content={post.title} />
@@ -151,7 +151,7 @@ export default function PostDetail() {
           },
           publisher: {
             '@type': 'Organization',
-            name: 'Your Blogsite',
+            name: 'Your TerryOlise's Blog',
             logo: { '@type': 'ImageObject', url: `${siteUrl}/logo.png` },
           },
           mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl },

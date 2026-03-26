@@ -11,8 +11,8 @@ import { SEOHead } from '@/components/seo/SEOHead';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 
-// Inline BlogsiteLogo component
-const BlogsiteLogo: React.FC = () => (
+// Inline TerryOlise's BlogLogo component
+const TerryOlise's BlogLogo: React.FC = () => (
   <svg
     className="mx-auto w-full max-w-xs translate-y-0 opacity-100 transition-all duration-1000 lg:max-w-md dark:text-[#F61500] text-[#F53003]"
     viewBox="0 0 200 60"
@@ -29,7 +29,7 @@ const BlogsiteLogo: React.FC = () => (
       fill="currentColor"
       fontFamily="system-ui, -apple-system, sans-serif"
     >
-      BLOGSITE
+      TERRYOLISE'S BLOG
     </text>
   </svg>
 );
@@ -60,7 +60,7 @@ export default function Welcome() {
   return (
     <>
       <SEOHead
-        title="Welcome to Blogsite"
+        title="Welcome to TerryOlise's Blog"
         description="Publish distraction-free. Reach readers who care."
       />
       <div className="min-h-screen bg-[#FDFDFC] text-[#1b1b18] dark:bg-[#0a0a0a] dark:text-[#EDEDEC]">
@@ -70,7 +70,7 @@ export default function Welcome() {
         <main className="mx-auto flex max-w-4xl grow flex-col items-center justify-center gap-12 px-6 py-12 lg:flex-row lg:gap-0 lg:px-8 lg:py-20">
           {/* Left column */}
           <div className="w-full max-w-md rounded-b-2xl bg-white p-8 shadow-inner dark:bg-[#161615] lg:max-w-none lg:rounded-bl-2xl lg:rounded-tr-none lg:p-12 lg:shadow-[inset_0_0_0_1px_rgba(26,26,0,0.16)] dark:lg:shadow-[inset_0_0_0_1px_#fffaed2d]">
-            <h1 className="mb-2 text-xl font-medium">Welcome to Blogsite</h1>
+            <h1 className="mb-2 text-xl font-medium">Welcome to TerryOlise's Blog</h1>
             <p className="mb-6 text-[#706f6c] dark:text-[#A1A09A]">
               Publish distraction-free. Reach readers who care.
               <br />
@@ -112,7 +112,7 @@ export default function Welcome() {
 
           {/* Right column */}
           <div className="relative w-full overflow-hidden rounded-t-2xl bg-[#fff2f2] lg:w-auto lg:max-w-xl lg:rounded-r-2xl lg:rounded-tl-none dark:bg-[#1D0002]">
-            <BlogsiteLogo />
+            <TerryOlise's BlogLogo />
             <div className="absolute inset-0 bg-linear-to-br from-[#f53003]/5 to-transparent pointer-events-none" />
             <div className="pointer-events-none absolute inset-0 rounded-t-2xl shadow-[inset_0_0_0_1px_rgba(26,26,0,0.16)] dark:rounded-r-2xl dark:shadow-[inset_0_0_0_1px_#fffaed2d] lg:rounded-tl-none" />
           </div>

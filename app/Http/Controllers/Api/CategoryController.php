@@ -1,311 +1,152 @@
 <?php
-namespace App\Http\Controllers\Api;
 
-use App\Http\Controllers\Controller;
-use App\Models\Category;
-use Illuminate\Http\Request;
-use Illuminate\Support\Facades\Validator;
+namespace App\Models;
 
-class CategoryController extends Controller
+use MongoDB\Laravel\Eloquent\Model;
+use MongoDB\Laravel\Relations\BelongsTo;
+use MongoDB\Laravel\Relations\HasMany;
+use Illuminate\Support\Str;
+use Illuminate\Database\Eloquent\SoftDeletes;
+
+class Category extends Model
 {
-    public function index(Request $request)
+    use SoftDeletes;
+
+    protected $connection = 'mongodb';
+    protected $collection = 'categories';
+
+    protected $fillable = [
+        'name',
+        'slug',
+        'description',
+        'color',
+        'icon',
+        'parent_id',
+        'order',
+        'is_featured',
+        'meta_title',
+        'meta_description',
+        'posts_count', // 🔥 persisted counter
+    ];
+
+    protected $attributes = [
+        'posts_count' => 0,
+    ];
+
+    protected $casts = [
+        'is_featured' => 'boolean',
+        'order'       => 'integer',
+    ];
+
+    // Relationships
+    public function posts(): HasMany
     {
-        $query = Category::query();
-
-        if ($request->has('parent_id')) {
-            if ($request->parent_id === 'null') {
-                $query->root();
-            } else {
-                // Cast to string — MongoDB _id comparisons must be strings
-                $query->where('parent_id', (string) $request->parent_id);
-            }
-        }
-
-        if ($request->boolean('featured')) {
-            $query->featured();
-        }
-
-        if ($request->boolean('with_posts_count')) {
-            $query->withPostsCount();
-        }
-
-        if ($request->boolean('with_children')) {
-            $query->with(['children' => function ($q) use ($request) {
-                $q->ordered();
-                if ($request->boolean('with_posts_count')) {
-                    $q->withPostsCount();
-                }
-            }]);
-        }
-
-        $categories = $query->ordered()->get();
-
-        return response()->json($categories);
+        return $this->hasMany(Post::class);
     }
 
-    public function store(Request $request)
+    public function parent(): BelongsTo
     {
-        $validator = Validator::make($request->all(), [
-            'name'             => 'required|string|max:255',
-            // unique validation works with laravel-mongodb out of the box
-            'slug'             => 'nullable|string|unique:categories,slug',
-            'description'      => 'nullable|string',
-            'color'            => 'nullable|string|size:7|regex:/^#[0-9A-Fa-f]{6}$/',
-            'icon'             => 'nullable|string|max:50',
-            'parent_id'        => 'nullable|exists:categories,_id',
-            'order'            => 'nullable|integer|min:0',
-            'is_featured'      => 'boolean',
-            'meta_title'       => 'nullable|string|max:255',
-            'meta_description' => 'nullable|string',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        try {
-            // MongoDB does not support multi-document transactions unless
-            // running a replica set. Wrap only if your setup supports it;
-            // otherwise create directly.
-            $category = Category::create($request->all());
-
-            $category->load('parent');
-
-            if ($request->boolean('with_posts_count')) {
-                // loadCount uses $lookup aggregation in laravel-mongodb
-                $category->loadCount(['posts' => fn($q) => $q->published()]);
-            }
-
-            return response()->json($category, 201);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to create category',
-                'error'   => $e->getMessage(),
-            ], 500);
-        }
+        return $this->belongsTo(Category::class, 'parent_id');
     }
 
-    public function show($slug)
+    public function children(): HasMany
     {
-        $category = Category::where('slug', $slug)
-            ->with(['children' => fn($q) => $q->ordered()->withPostsCount()])
-            ->withPostsCount()
-            ->firstOrFail();
-
-        return response()->json($category);
+        return $this->hasMany(Category::class, 'parent_id')->orderBy('order');
     }
 
-    public function update(Request $request, Category $category)
+    // Scopes
+    public function scopeFeatured($query)
     {
-        $validator = Validator::make($request->all(), [
-            'name'             => 'string|max:255',
-            // Exclude current doc by _id instead of id
-            'slug'             => 'string|unique:categories,slug,' . (string) $category->_id . ',_id',
-            'description'      => 'nullable|string',
-            'color'            => 'nullable|string|size:7|regex:/^#[0-9A-Fa-f]{6}$/',
-            'icon'             => 'nullable|string|max:50',
-            'parent_id'        => 'nullable|exists:categories,_id',
-            'order'            => 'nullable|integer|min:0',
-            'is_featured'      => 'boolean',
-            'meta_title'       => 'nullable|string|max:255',
-            'meta_description' => 'nullable|string',
-        ]);
+        return $query->where('is_featured', true);
+    }
 
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
+    public function scopeOrdered($query)
+    {
+        return $query->orderBy('order')->orderBy('name');
+    }
 
-        if ($request->has('parent_id')) {
-            if ((string) $request->parent_id === (string) $category->_id) {
-                return response()->json([
-                    'errors' => ['parent_id' => ['Category cannot be its own parent']],
-                ], 422);
+    public function scopeRoot($query)
+    {
+        return $query->whereNull('parent_id');
+    }
+
+    // Utility Methods
+    public function canSetParent(?string $parentId): bool
+    {
+        return !$this->wouldCreateCircularReference($parentId);
+    }
+
+    public function wouldCreateCircularReference(?string $newParentId): bool
+    {
+        if ($newParentId === null) return false;
+        if ($newParentId === (string) $this->_id) return true;
+
+        $descendantIds = $this->getDescendants()->pluck('_id')->map(fn($id) => (string) $id);
+        return $descendantIds->contains((string) $newParentId);
+    }
+
+    public function getDescendants(int $maxDepth = 10, int $depth = 0)
+    {
+        if ($depth >= $maxDepth) return collect();
+
+        return $this->children->flatMap(function ($child) use ($maxDepth, $depth) {
+            return collect([$child])->merge(
+                $child->getDescendants($maxDepth, $depth + 1)
+            );
+        });
+    }
+
+    protected function generateUniqueSlug(string $name, ?string $excludeId = null): string
+    {
+        $slug = Str::slug($name);
+        $original = $slug;
+        $counter = 1;
+
+        while (true) {
+            $query = static::where('slug', $slug);
+            if ($excludeId) {
+                $query->where('_id', '!=', $excludeId);
             }
 
-            if ($request->parent_id !== null && !$category->canSetParent($request->parent_id)) {
-                return response()->json([
-                    'errors' => ['parent_id' => ['This would create a circular reference in the category hierarchy']],
-                ], 422);
-            }
-        }
+            if (!$query->exists()) return $slug;
 
-        try {
-            $category->update($request->all());
-            $category->load('parent', 'children');
-
-            if ($request->boolean('with_posts_count')) {
-                $category->loadCount(['posts' => fn($q) => $q->published()]);
-            }
-
-            return response()->json($category);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to update category',
-                'error'   => $e->getMessage(),
-            ], 500);
+            $slug = $original . '-' . $counter++;
         }
     }
 
-    public function destroy(Category $category)
+    protected static function boot()
     {
-        try {
-            $category->safeDelete();
-            return response()->json(['message' => 'Category deleted successfully']);
-        } catch (\Exception $e) {
-            return response()->json(['message' => $e->getMessage()], 422);
-        }
-    }
+        parent::boot();
 
-    public function posts(Request $request, $slug)
-    {
-        $category = Category::where('slug', $slug)->firstOrFail();
-
-        $posts = $category->posts()
-            ->published()
-            ->with(['user', 'tags'])
-            ->withCount(['comments', 'likes'])
-            ->latest('published_at')
-            ->paginate($request->input('per_page', 15));
-
-        return response()->json($posts);
-    }
-
-    public function tree(Request $request)
-    {
-        $query = Category::root()
-            ->with(['children' => function ($q) {
-                $q->ordered()->withPostsCount()
-                  ->with(['children' => fn($nested) => $nested->ordered()->withPostsCount()]);
-            }])
-            ->ordered();
-
-        if ($request->boolean('with_posts_count')) {
-            $query->withPostsCount();
-        }
-
-        return response()->json($this->buildTree($query->get()));
-    }
-
-    public function reorder(Request $request)
-    {
-        $validator = Validator::make($request->all(), [
-            'categories'            => 'required|array',
-            'categories.*.id'       => 'required|exists:categories,_id',
-            'categories.*.order'    => 'required|integer|min:0',
-            'categories.*.parent_id'=> 'nullable|exists:categories,_id',
-        ]);
-
-        if ($validator->fails()) {
-            return response()->json(['errors' => $validator->errors()], 422);
-        }
-
-        // Validate circular references before writing anything
-        foreach ($request->categories as $item) {
-            if (!empty($item['parent_id'])) {
-                $category = Category::find($item['id']);
-                if (!$category || !$category->canSetParent($item['parent_id'])) {
-                    return response()->json([
-                        'errors' => ['categories' => ["Category {$category->name} would create a circular reference"]],
-                    ], 422);
-                }
-            }
-        }
-
-        try {
-            foreach ($request->categories as $item) {
-                $updateData = ['order' => $item['order']];
-
-                if (isset($item['parent_id'])) {
-                    $updateData['parent_id'] = $item['parent_id'];
-                }
-
-                // Use _id for MongoDB document lookup
-                Category::where('_id', $item['id'])->update($updateData);
+        static::creating(function ($category) {
+            if (empty($category->slug)) {
+                $category->slug = $category->generateUniqueSlug($category->name);
             }
 
-            return response()->json(['message' => 'Categories reordered successfully']);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to reorder categories',
-                'error'   => $e->getMessage(),
-            ], 500);
-        }
-    }
+            if ($category->order === null) {
+                $maxOrder = static::where('parent_id', $category->parent_id)->max('order') ?? 0;
+                $category->order = $maxOrder + 1;
+            }
+        });
 
-    public function forceDestroy(Category $category)
-    {
-        try {
-            $allCategories = collect([$category])->merge($category->getDescendants());
-
-            foreach ($allCategories as $cat) {
-                $cat->posts()->delete();
+        static::updating(function ($category) {
+            if ($category->isDirty('name') && !$category->isDirty('slug')) {
+                $category->slug = $category->generateUniqueSlug(
+                    $category->name,
+                    (string) $category->_id
+                );
             }
 
-            // forceDelete works with laravel-mongodb's SoftDeletes trait
-            $category->forceDelete();
-
-            return response()->json(['message' => 'Category permanently deleted']);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to delete category',
-                'error'   => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    public function restore($id)
-    {
-        // onlyTrashed() works with laravel-mongodb's SoftDeletes
-        $category = Category::onlyTrashed()->findOrFail($id);
-
-        try {
-            $category->restore();
-            return response()->json([
-                'message'  => 'Category restored successfully',
-                'category' => $category->fresh(),
-            ]);
-        } catch (\Exception $e) {
-            return response()->json([
-                'message' => 'Failed to restore category',
-                'error'   => $e->getMessage(),
-            ], 500);
-        }
-    }
-
-    public function breadcrumb($slug)
-    {
-        $category = Category::where('slug', $slug)->firstOrFail();
-
-        return response()->json([
-            'path'      => $category->getPath(),
-            'ancestors' => $category->getAncestors(),
-            'category'  => $category,
-        ]);
-    }
-
-    protected function buildTree($categories)
-    {
-        return $categories->map(function ($category) {
-            $data = [
-                // Expose _id as string for consistency with frontend
-                'id'    => (string) $category->_id,
-                'name'  => $category->name,
-                'slug'  => $category->slug,
-                'color' => $category->color,
-                'icon'  => $category->icon,
-            ];
-
-            if ($category->relationLoaded('posts')) {
-                $data['posts_count'] = $category->posts_count;
-            } elseif (isset($category->posts_count)) {
-                $data['posts_count'] = $category->posts_count;
+            if ($category->isDirty('parent_id') &&
+                $category->wouldCreateCircularReference($category->parent_id)) {
+                throw new \Exception('Circular reference detected');
             }
+        });
 
-            if ($category->relationLoaded('children') && $category->children->isNotEmpty()) {
-                $data['children'] = $this->buildTree($category->children);
+        static::deleting(function ($category) {
+            foreach ($category->getDescendants() as $descendant) {
+                $descendant->delete();
             }
-
-            return $data;
         });
     }
 }

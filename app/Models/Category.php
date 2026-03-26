@@ -13,7 +13,7 @@ class Category extends Model
     use SoftDeletes;
 
     protected $connection = 'mongodb';
-    protected $collection = 'categories';    
+    protected $collection = 'categories';
 
     protected $fillable = [
         'name',
@@ -26,6 +26,11 @@ class Category extends Model
         'is_featured',
         'meta_title',
         'meta_description',
+        'posts_count', // 🔥 persisted counter
+    ];
+
+    protected $attributes = [
+        'posts_count' => 0,
     ];
 
     protected $casts = [
@@ -49,12 +54,6 @@ class Category extends Model
         return $this->hasMany(Category::class, 'parent_id')->orderBy('order');
     }
 
-    // Accessor for posts count (alternative to scope)
-    public function getPostsCountAttribute(): int
-    {
-        return $this->posts()->where('status', 'published')->count();
-    }
-
     // Scopes
     public function scopeFeatured($query)
     {
@@ -71,77 +70,47 @@ class Category extends Model
         return $query->whereNull('parent_id');
     }
 
-    /**
-     * Add a count of published posts to the query.
-     * Used when the controller requests with_posts_count=true.
-     */
-    public function scopeWithPostsCount($query)
+    // Utility Methods
+    public function canSetParent(?string $parentId): bool
     {
-        return $query->withCount(['posts' => function ($q) {
-            $q->where('status', 'published');
-        }]);
-    }
-
-    // Utility methods
-    public function hasChildren(): bool
-    {
-        return $this->children()->count() > 0;
-    }
-
-    public function getAncestors(): \Illuminate\Support\Collection
-    {
-        $ancestors = collect();
-        $category  = $this;
-        $visited   = collect([$this->id]);
-
-        while ($category->parent) {
-            if ($visited->contains($category->parent->id)) break;
-            $ancestors->push($category->parent);
-            $visited->push($category->parent->id);
-            $category = $category->parent;
-        }
-
-        return $ancestors->reverse();
-    }
-
-    public function getDescendants(int $maxDepth = 10, int $currentDepth = 0): \Illuminate\Support\Collection
-    {
-        $descendants = collect();
-
-        if ($currentDepth >= $maxDepth) return $descendants;
-
-        foreach ($this->children as $child) {
-            $descendants->push($child);
-            $descendants = $descendants->merge(
-                $child->getDescendants($maxDepth, $currentDepth + 1)
-            );
-        }
-
-        return $descendants;
+        return !$this->wouldCreateCircularReference($parentId);
     }
 
     public function wouldCreateCircularReference(?string $newParentId): bool
     {
         if ($newParentId === null) return false;
-        if ($newParentId === (string) $this->id) return true;
+        if ($newParentId === (string) $this->_id) return true;
 
-        $descendantIds = $this->getDescendants()->pluck('id')->map(fn($id) => (string) $id);
+        $descendantIds = $this->getDescendants()->pluck('_id')->map(fn($id) => (string) $id);
         return $descendantIds->contains((string) $newParentId);
+    }
+
+    public function getDescendants(int $maxDepth = 10, int $depth = 0)
+    {
+        if ($depth >= $maxDepth) return collect();
+
+        return $this->children->flatMap(function ($child) use ($maxDepth, $depth) {
+            return collect([$child])->merge(
+                $child->getDescendants($maxDepth, $depth + 1)
+            );
+        });
     }
 
     protected function generateUniqueSlug(string $name, ?string $excludeId = null): string
     {
-        $slug         = Str::slug($name);
-        $originalSlug = $slug;
-        $counter      = 1;
+        $slug = Str::slug($name);
+        $original = $slug;
+        $counter = 1;
 
         while (true) {
             $query = static::where('slug', $slug);
-            if ($excludeId) $query->where('_id', '!=', $excludeId);
+            if ($excludeId) {
+                $query->where('_id', '!=', $excludeId);
+            }
+
             if (!$query->exists()) return $slug;
 
-            $slug = $originalSlug . '-' . $counter++;
-            if ($counter > 1000) throw new \Exception('Unable to generate unique slug');
+            $slug = $original . '-' . $counter++;
         }
     }
 
@@ -153,18 +122,24 @@ class Category extends Model
             if (empty($category->slug)) {
                 $category->slug = $category->generateUniqueSlug($category->name);
             }
+
             if ($category->order === null) {
-                $maxOrder       = static::where('parent_id', $category->parent_id)->max('order') ?? 0;
+                $maxOrder = static::where('parent_id', $category->parent_id)->max('order') ?? 0;
                 $category->order = $maxOrder + 1;
             }
         });
 
         static::updating(function ($category) {
             if ($category->isDirty('name') && !$category->isDirty('slug')) {
-                $category->slug = $category->generateUniqueSlug($category->name, $category->id);
+                $category->slug = $category->generateUniqueSlug(
+                    $category->name,
+                    (string) $category->_id
+                );
             }
-            if ($category->isDirty('parent_id') && $category->wouldCreateCircularReference($category->parent_id)) {
-                throw new \Exception('Setting this parent would create a circular reference');
+
+            if ($category->isDirty('parent_id') &&
+                $category->wouldCreateCircularReference($category->parent_id)) {
+                throw new \Exception('Circular reference detected');
             }
         });
 
