@@ -33,6 +33,7 @@ class Category extends Model
         'order'       => 'integer',
     ];
 
+    // Relationships
     public function posts(): HasMany
     {
         return $this->hasMany(Post::class);
@@ -48,11 +49,13 @@ class Category extends Model
         return $this->hasMany(Category::class, 'parent_id')->orderBy('order');
     }
 
+    // Accessor for posts count (alternative to scope)
     public function getPostsCountAttribute(): int
     {
         return $this->posts()->where('status', 'published')->count();
     }
 
+    // Scopes
     public function scopeFeatured($query)
     {
         return $query->where('is_featured', true);
@@ -68,6 +71,18 @@ class Category extends Model
         return $query->whereNull('parent_id');
     }
 
+    /**
+     * Add a count of published posts to the query.
+     * Used when the controller requests with_posts_count=true.
+     */
+    public function scopeWithPostsCount($query)
+    {
+        return $query->withCount(['posts' => function ($q) {
+            $q->where('status', 'published');
+        }]);
+    }
+
+    // Utility methods
     public function hasChildren(): bool
     {
         return $this->children()->count() > 0;
