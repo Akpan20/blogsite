@@ -1,152 +1,175 @@
 <?php
 
-namespace App\Models;
+namespace App\Http\Controllers\Api;
 
-use MongoDB\Laravel\Eloquent\Model;
-use MongoDB\Laravel\Relations\BelongsTo;
-use MongoDB\Laravel\Relations\HasMany;
-use Illuminate\Support\Str;
-use Illuminate\Database\Eloquent\SoftDeletes;
+use App\Http\Controllers\Controller;
+use App\Models\Category;
+use Illuminate\Http\Request;
+use Illuminate\Support\Facades\Validator;
 
-class Category extends Model
+class CategoryController extends Controller
 {
-    use SoftDeletes;
-
-    protected $connection = 'mongodb';
-    protected $collection = 'categories';
-
-    protected $fillable = [
-        'name',
-        'slug',
-        'description',
-        'color',
-        'icon',
-        'parent_id',
-        'order',
-        'is_featured',
-        'meta_title',
-        'meta_description',
-        'posts_count', // 🔥 persisted counter
-    ];
-
-    protected $attributes = [
-        'posts_count' => 0,
-    ];
-
-    protected $casts = [
-        'is_featured' => 'boolean',
-        'order'       => 'integer',
-    ];
-
-    // Relationships
-    public function posts(): HasMany
+    public function index(Request $request)
     {
-        return $this->hasMany(Post::class);
-    }
+        $query = Category::query();
 
-    public function parent(): BelongsTo
-    {
-        return $this->belongsTo(Category::class, 'parent_id');
-    }
-
-    public function children(): HasMany
-    {
-        return $this->hasMany(Category::class, 'parent_id')->orderBy('order');
-    }
-
-    // Scopes
-    public function scopeFeatured($query)
-    {
-        return $query->where('is_featured', true);
-    }
-
-    public function scopeOrdered($query)
-    {
-        return $query->orderBy('order')->orderBy('name');
-    }
-
-    public function scopeRoot($query)
-    {
-        return $query->whereNull('parent_id');
-    }
-
-    // Utility Methods
-    public function canSetParent(?string $parentId): bool
-    {
-        return !$this->wouldCreateCircularReference($parentId);
-    }
-
-    public function wouldCreateCircularReference(?string $newParentId): bool
-    {
-        if ($newParentId === null) return false;
-        if ($newParentId === (string) $this->_id) return true;
-
-        $descendantIds = $this->getDescendants()->pluck('_id')->map(fn($id) => (string) $id);
-        return $descendantIds->contains((string) $newParentId);
-    }
-
-    public function getDescendants(int $maxDepth = 10, int $depth = 0)
-    {
-        if ($depth >= $maxDepth) return collect();
-
-        return $this->children->flatMap(function ($child) use ($maxDepth, $depth) {
-            return collect([$child])->merge(
-                $child->getDescendants($maxDepth, $depth + 1)
-            );
-        });
-    }
-
-    protected function generateUniqueSlug(string $name, ?string $excludeId = null): string
-    {
-        $slug = Str::slug($name);
-        $original = $slug;
-        $counter = 1;
-
-        while (true) {
-            $query = static::where('slug', $slug);
-            if ($excludeId) {
-                $query->where('_id', '!=', $excludeId);
+        if ($request->has('parent_id')) {
+            if ($request->parent_id === 'null') {
+                $query->root();
+            } else {
+                $query->where('parent_id', (string) $request->parent_id);
             }
+        }
 
-            if (!$query->exists()) return $slug;
+        if ($request->boolean('featured')) {
+            $query->featured();
+        }
 
-            $slug = $original . '-' . $counter++;
+        // 🔥 No withCount anymore — just fetch
+        $categories = $query->ordered()->get();
+
+        return response()->json($categories);
+    }
+
+    public function store(Request $request)
+    {
+        $validator = Validator::make($request->all(), [
+            'name'             => 'required|string|max:255',
+            'slug'             => 'nullable|string|unique:categories,slug',
+            'description'      => 'nullable|string',
+            'color'            => 'nullable|string|size:7|regex:/^#[0-9A-Fa-f]{6}$/',
+            'icon'             => 'nullable|string|max:50',
+            'parent_id'        => 'nullable|exists:categories,_id',
+            'order'            => 'nullable|integer|min:0',
+            'is_featured'      => 'boolean',
+            'meta_title'       => 'nullable|string|max:255',
+            'meta_description' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        try {
+            $data = $request->all();
+            $data['posts_count'] = 0; // 🔥 initialize counter
+
+            $category = Category::create($data);
+            $category->load('parent');
+
+            return response()->json($category, 201);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to create category',
+                'error'   => $e->getMessage(),
+            ], 500);
         }
     }
 
-    protected static function boot()
+    public function show($slug)
     {
-        parent::boot();
+        $category = Category::where('slug', $slug)
+            ->with(['children' => fn($q) => $q->ordered()])
+            ->firstOrFail();
 
-        static::creating(function ($category) {
-            if (empty($category->slug)) {
-                $category->slug = $category->generateUniqueSlug($category->name);
+        return response()->json($category);
+    }
+
+    public function update(Request $request, Category $category)
+    {
+        $validator = Validator::make($request->all(), [
+            'name'             => 'string|max:255',
+            'slug'             => 'string|unique:categories,slug,' . (string) $category->_id . ',_id',
+            'description'      => 'nullable|string',
+            'color'            => 'nullable|string|size:7|regex:/^#[0-9A-Fa-f]{6}$/',
+            'icon'             => 'nullable|string|max:50',
+            'parent_id'        => 'nullable|exists:categories,_id',
+            'order'            => 'nullable|integer|min:0',
+            'is_featured'      => 'boolean',
+            'meta_title'       => 'nullable|string|max:255',
+            'meta_description' => 'nullable|string',
+        ]);
+
+        if ($validator->fails()) {
+            return response()->json(['errors' => $validator->errors()], 422);
+        }
+
+        if ($request->has('parent_id')) {
+            if ((string) $request->parent_id === (string) $category->_id) {
+                return response()->json([
+                    'errors' => ['parent_id' => ['Category cannot be its own parent']],
+                ], 422);
             }
 
-            if ($category->order === null) {
-                $maxOrder = static::where('parent_id', $category->parent_id)->max('order') ?? 0;
-                $category->order = $maxOrder + 1;
+            if ($request->parent_id !== null && !$category->canSetParent($request->parent_id)) {
+                return response()->json([
+                    'errors' => ['parent_id' => ['Circular reference detected']],
+                ], 422);
             }
-        });
+        }
 
-        static::updating(function ($category) {
-            if ($category->isDirty('name') && !$category->isDirty('slug')) {
-                $category->slug = $category->generateUniqueSlug(
-                    $category->name,
-                    (string) $category->_id
-                );
-            }
+        try {
+            $category->update($request->all());
+            $category->load('parent', 'children');
 
-            if ($category->isDirty('parent_id') &&
-                $category->wouldCreateCircularReference($category->parent_id)) {
-                throw new \Exception('Circular reference detected');
-            }
-        });
+            return response()->json($category);
+        } catch (\Exception $e) {
+            return response()->json([
+                'message' => 'Failed to update category',
+                'error'   => $e->getMessage(),
+            ], 500);
+        }
+    }
 
-        static::deleting(function ($category) {
-            foreach ($category->getDescendants() as $descendant) {
-                $descendant->delete();
-            }
-        });
+    public function destroy(Category $category)
+    {
+        try {
+            $category->safeDelete();
+            return response()->json(['message' => 'Category deleted successfully']);
+        } catch (\Exception $e) {
+            return response()->json(['message' => $e->getMessage()], 422);
+        }
+    }
+
+    public function tree()
+    {
+        // 🔥 ONE query only
+        $categories = Category::ordered()->get();
+
+        return response()->json($this->buildTreeEfficient($categories));
+    }
+
+    protected function buildTreeEfficient($categories)
+    {
+        $grouped = $categories->groupBy('parent_id');
+
+        $build = function ($parentId) use (&$build, $grouped) {
+            return ($grouped[$parentId] ?? collect())->map(function ($cat) use ($build) {
+                return [
+                    'id'          => (string) $cat->_id,
+                    'name'        => $cat->name,
+                    'slug'        => $cat->slug,
+                    'color'       => $cat->color,
+                    'icon'        => $cat->icon,
+                    'posts_count' => $cat->posts_count,
+                    'children'    => $build((string) $cat->_id),
+                ];
+            });
+        };
+
+        return $build(null);
+    }
+
+    public function posts(Request $request, $slug)
+    {
+        $category = Category::where('slug', $slug)->firstOrFail();
+
+        $posts = $category->posts()
+            ->published()
+            ->with(['user', 'tags'])
+            ->latest('published_at')
+            ->paginate($request->input('per_page', 15));
+
+        return response()->json($posts);
     }
 }
