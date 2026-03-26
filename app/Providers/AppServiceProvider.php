@@ -7,8 +7,6 @@ use Illuminate\Cache\RateLimiting\Limit;
 use Illuminate\Support\Facades\RateLimiter;
 use Illuminate\Support\Facades\URL;
 use Illuminate\Http\Request;
-use Laravel\Sanctum\Sanctum;
-use App\Models\PersonalAccessToken;
 
 class AppServiceProvider extends ServiceProvider
 {
@@ -23,9 +21,6 @@ class AppServiceProvider extends ServiceProvider
         if (config('app.env') === 'production') {
             URL::forceScheme('https');
         }
-
-        // Tell Sanctum to use MongoDB token model
-        Sanctum::usePersonalAccessTokenModel(PersonalAccessToken::class);
 
         // Global API rate limit - 60 requests per minute
         RateLimiter::for('api', function (Request $request) {
