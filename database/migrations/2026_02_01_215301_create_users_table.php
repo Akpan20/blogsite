@@ -13,7 +13,7 @@ return new class extends Migration
             $table->id();
             $table->string('name');
             $table->string('email')->unique();
-            $table->string('username')->unique()->nullable();
+            $table->string('username')->nullable();
             $table->timestamp('email_verified_at')->nullable();
             $table->string('password');
             $table->rememberToken();
@@ -42,7 +42,9 @@ return new class extends Migration
             $table->timestamps();
 
             // ── Indexes ───────────────────────────────────────────────────
-            $table->index('username');
+            // Sparse unique index for nullable username
+            $table->unique('username', 'unique_username', null, ['sparse' => true]);
+
             $table->index('role');
             $table->index('reputation_points');
             $table->index('is_active');

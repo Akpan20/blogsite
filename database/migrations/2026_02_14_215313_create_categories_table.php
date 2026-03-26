@@ -10,15 +10,14 @@ return new class extends Migration
     {
         Schema::create('categories', function (Blueprint $table) {
             $table->id();
+
+            // ── Core fields ─────────────────────────────────────────────
             $table->string('name');
-            $table->string('slug')->unique();
+            $table->string('slug')->nullable(); // nullable for MongoDB-safe unique index
             $table->text('description')->nullable();
             $table->string('color', 7)->default('#3B82F6');
             $table->string('icon')->nullable();
-            $table->foreignId('parent_id')
-                  ->nullable()
-                  ->constrained('categories')
-                  ->onDelete('cascade');
+            $table->foreignId('parent_id')->nullable(); // MongoDB doesn't enforce FKs
             $table->integer('order')->default(0);
             $table->boolean('is_featured')->default(false);
             $table->string('meta_title')->nullable();
@@ -26,8 +25,11 @@ return new class extends Migration
             $table->softDeletes();
             $table->timestamps();
 
-            // ── Indexes ───────────────────────────────────────────────────
-            $table->index('slug');
+            // ── Indexes ───────────────────────────────────────────────
+            // Unique slug index (sparse to allow null)
+            $table->unique('slug', 'unique_slug', null, ['sparse' => true]);
+
+            // Other useful indexes
             $table->index('parent_id');
             $table->index('is_featured');
             $table->index(['is_featured', 'order']);

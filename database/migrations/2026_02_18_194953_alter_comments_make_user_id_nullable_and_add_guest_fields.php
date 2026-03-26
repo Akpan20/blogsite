@@ -10,19 +10,22 @@ return new class extends Migration
     {
         Schema::table('comments', function (Blueprint $table) {
             // Make user_id nullable
-            $table->foreignId('user_id')
-                  ->nullable()
-                  ->change();
+            $table->foreignId('user_id')->nullable()->change();
 
             // Add guest fields if they don't exist
             if (!Schema::hasColumn('comments', 'name')) {
-                $table->string('name')->nullable()->after('content');
+                $table->string('name')->nullable();
             }
             if (!Schema::hasColumn('comments', 'email')) {
-                $table->string('email')->nullable()->after('name');
+                $table->string('email')->nullable();
             }
             if (!Schema::hasColumn('comments', 'approved')) {
-                $table->boolean('approved')->default(false)->after('email');
+                $table->boolean('approved')->default(false);
+            }
+
+            // Optional: add index on approved for faster moderation queries
+            if (!Schema::hasColumn('comments', 'approved')) {
+                $table->index('approved');
             }
         });
     }
@@ -32,8 +35,12 @@ return new class extends Migration
         Schema::table('comments', function (Blueprint $table) {
             $table->foreignId('user_id')->nullable(false)->change();
 
-            // Optional: drop added columns if needed
-            $table->dropColumn(['name', 'email', 'approved']);
+            $columns = ['name', 'email', 'approved'];
+            foreach ($columns as $column) {
+                if (Schema::hasColumn('comments', $column)) {
+                    $table->dropColumn($column);
+                }
+            }
         });
     }
 };

@@ -10,17 +10,29 @@ return new class extends Migration
     {
         Schema::create('newsletter_subscribers', function (Blueprint $table) {
             $table->id();
-            $table->string('email')->unique();
-            $table->string('token')->unique();
+
+            // ── Core fields ─────────────────────────────────────────────
+            $table->string('email')->nullable();
+            $table->string('token')->nullable();
+
+            // ── Status & confirmation ───────────────────────────────────
             $table->boolean('is_confirmed')->default(false);
             $table->timestamp('confirmed_at')->nullable();
             $table->string('status')->default('active'); // active, unsubscribed
+
+            // ── Tracking ───────────────────────────────────────────────
             $table->ipAddress('ip_address')->nullable();
             $table->string('source')->nullable(); // footer, popup, post
             $table->json('preferences')->nullable();
+
             $table->timestamps();
 
-            $table->index('email');
+            // ── Indexes ───────────────────────────────────────────────
+            // Sparse unique indexes to avoid conflicts with nullable fields
+            $table->unique('email', 'unique_email', null, ['sparse' => true]);
+            $table->unique('token', 'unique_token', null, ['sparse' => true]);
+
+            // Additional normal indexes
             $table->index('status');
         });
     }

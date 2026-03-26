@@ -10,14 +10,21 @@ return new class extends Migration
     {
         Schema::create('resources', function (Blueprint $table) {
             $table->id();
+
+            // ── Core fields ─────────────────────────────────────────────
             $table->string('title');
-            $table->string('excerpt', 300);
-            $table->longText('content');
-            $table->string('category');
+            $table->string('excerpt', 300)->nullable();
+            $table->longText('content')->nullable();
+            $table->string('category')->nullable();
             $table->string('icon')->default('BookOpen');
-            $table->string('slug')->unique();
+            $table->string('slug')->nullable(); // nullable to avoid unique index conflicts
             $table->boolean('is_published')->default(false);
             $table->timestamps();
+
+            // ── Indexes ───────────────────────────────────────────────
+            $table->unique('slug', 'unique_slug', null, ['sparse' => true]);
+            $table->index('category');
+            $table->index('is_published');
         });
     }
 

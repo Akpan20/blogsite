@@ -8,24 +8,28 @@ return new class extends Migration
 {
     public function up(): void
     {
+        // ── Tags table ───────────────────────────────────────────────
         Schema::create('tags', function (Blueprint $table) {
             $table->id();
             $table->string('name');
-            $table->string('slug')->unique();
+            $table->string('slug')->nullable(); // nullable for MongoDB-safe unique index
             $table->text('description')->nullable();
             $table->string('color', 7)->default('#10B981'); // Hex color for UI
             $table->timestamps();
-            
-            $table->index('slug');
+
+            // Unique index for slug
+            $table->unique('slug', 'unique_slug', null, ['sparse' => true]);
         });
 
-        // Pivot table for post-tag relationship
+        // ── Pivot table for post-tag relationship ─────────────────────
         Schema::create('post_tag', function (Blueprint $table) {
-            $table->foreignId('post_id')->constrained()->onDelete('cascade');
-            $table->foreignId('tag_id')->constrained()->onDelete('cascade');
+            $table->foreignId('post_id')->nullable();
+            $table->foreignId('tag_id')->nullable();
             $table->timestamps();
-            
-            $table->primary(['post_id', 'tag_id']);
+
+            // Composite uniqueness replacement for MongoDB
+            $table->unique(['post_id', 'tag_id'], 'unique_post_tag');
+
             $table->index('tag_id');
         });
     }
