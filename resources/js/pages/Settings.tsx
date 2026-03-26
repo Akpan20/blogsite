@@ -131,7 +131,7 @@ export default function Settings() {
         <Card>
           <CardHeader>
             <CardTitle>Appearance</CardTitle>
-            <CardDescription>Choose how BlogSite looks to you</CardDescription>
+            <CardDescription>Choose how TerryOlise's Blog looks to you</CardDescription>
           </CardHeader>
           <CardContent>
             <div className="space-y-3">

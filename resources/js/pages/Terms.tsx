@@ -5,8 +5,8 @@ export default function Terms() {
   return (
     <>
       <Helmet>
-        <title>Terms of Service - BlogSite</title>
-        <meta name="description" content="Terms and conditions for using BlogSite's platform and services." />
+        <title>Terms of Service - TerryOlise's Blog</title>
+        <meta name="description" content="Terms and conditions for using TerryOlise's Blog's platform and services." />
       </Helmet>
 
       <div className="min-h-screen bg-gray-50 py-12">
@@ -14,13 +14,13 @@ export default function Terms() {
           <h1 className="text-4xl font-bold text-gray-900 mb-4">Terms of Service</h1>
           <p className="text-gray-600 mb-2">Last updated: February 16, 2026</p>
           <p className="text-xl text-gray-600 mb-8">
-            Please read these terms carefully before using BlogSite.
+            Please read these terms carefully before using TerryOlise's Blog.
           </p>
 
           <div className="bg-white rounded-lg shadow-sm p-8 mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">1. Acceptance of Terms</h2>
             <p className="text-gray-600">
-              By accessing or using BlogSite, you agree to be bound by these Terms of Service and our Privacy Policy. If you do not agree, please do not use our service.
+              By accessing or using TerryOlise's Blog, you agree to be bound by these Terms of Service and our Privacy Policy. If you do not agree, please do not use our service.
             </p>
           </div>
 
@@ -48,7 +48,7 @@ export default function Terms() {
 
             <h3 className="text-lg font-semibold text-gray-900 mb-2">Our Content</h3>
             <p className="text-gray-600">
-              BlogSite's interface, design, and features are protected by copyright and other intellectual property laws. You may not copy, modify, or create derivative works without permission.
+              TerryOlise's Blog's interface, design, and features are protected by copyright and other intellectual property laws. You may not copy, modify, or create derivative works without permission.
             </p>
           </div>
 
@@ -114,7 +114,7 @@ export default function Terms() {
           <div className="bg-white rounded-lg shadow-sm p-8 mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">9. Indemnification</h2>
             <p className="text-gray-600">
-              You agree to indemnify and hold harmless BlogSite from any claims, damages, or expenses arising from your use of the service or violation of these terms.
+              You agree to indemnify and hold harmless TerryOlise's Blog from any claims, damages, or expenses arising from your use of the service or violation of these terms.
             </p>
           </div>
 

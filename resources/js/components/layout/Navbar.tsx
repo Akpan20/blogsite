@@ -145,7 +145,7 @@ function DashboardNav({ isCollapsed: controlled, onToggle }: Omit<NavbarProps, '
               <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">
                 B
               </div>
-              <span className="text-xl font-bold text-gray-900 dark:text-white">BlogSite</span>
+              <span className="text-xl font-bold text-gray-900 dark:text-white">TerryOlise's Blog</span>
             </Link>
           )}
           <button
@@ -278,7 +278,7 @@ function TopNav() {
             <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">
               B
             </div>
-            <span className="text-xl font-bold text-gray-900 dark:text-white">BlogSite</span>
+            <span className="text-xl font-bold text-gray-900 dark:text-white">TerryOlise's Blog</span>
           </Link>
 
           {/* Desktop links */}

@@ -5,8 +5,8 @@ export default function Cookies() {
   return (
     <>
       <Helmet>
-        <title>Cookie Policy - BlogSite</title>
-        <meta name="description" content="Learn how BlogSite uses cookies and similar technologies." />
+        <title>Cookie Policy - TerryOlise's Blog</title>
+        <meta name="description" content="Learn how TerryOlise's Blog uses cookies and similar technologies." />
       </Helmet>
 
       <div className="min-h-screen bg-gray-50 py-12">

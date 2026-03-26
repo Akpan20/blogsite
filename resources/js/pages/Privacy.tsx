@@ -5,8 +5,8 @@ export default function Privacy() {
   return (
     <>
       <Helmet>
-        <title>Privacy Policy - BlogSite</title>
-        <meta name="description" content="Learn how BlogSite collects, uses, and protects your personal information." />
+        <title>Privacy Policy - TerryOlise's Blog</title>
+        <meta name="description" content="Learn how TerryOlise's Blog collects, uses, and protects your personal information." />
       </Helmet>
 
       <div className="min-h-screen bg-gray-50 py-12">

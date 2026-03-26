@@ -6,8 +6,8 @@ export default function About() {
   return (
     <>
       <Helmet>
-        <title>About Us - BlogSite</title>
-        <meta name="description" content="Learn about BlogSite's mission to empower creators and build a thriving community of writers and readers." />
+        <title>About Us - TerryOlise's Blog</title>
+        <meta name="description" content="Learn about TerryOlise's Blog's mission to empower creators and build a thriving community of writers and readers." />
       </Helmet>
 
       <div className="min-h-screen bg-gray-50 py-12">
@@ -17,7 +17,7 @@ export default function About() {
             <div className="w-20 h-20 bg-linear-to-br from-blue-600 to-indigo-600 rounded-2xl flex items-center justify-center text-white font-bold text-3xl mx-auto mb-6">
               B
             </div>
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">About BlogSite</h1>
+            <h1 className="text-4xl font-bold text-gray-900 mb-4">About TerryOlise's Blog</h1>
             <p className="text-xl text-gray-600 max-w-2xl mx-auto">
               A community-driven platform empowering creators to share their knowledge, stories, and expertise with the world.
             </p>
@@ -27,10 +27,10 @@ export default function About() {
           <div className="bg-white rounded-lg shadow-sm p-8 mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Our Mission</h2>
             <p className="text-gray-600 mb-4">
-              BlogSite was founded with a simple belief: everyone has valuable knowledge and stories to share. We're building a platform that makes it easy for creators to reach their audience and for readers to discover high-quality content.
+              TerryOlise's Blog was founded with a simple belief: everyone has valuable knowledge and stories to share. We're building a platform that makes it easy for creators to reach their audience and for readers to discover high-quality content.
             </p>
             <p className="text-gray-600">
-              Whether you're a seasoned writer, subject matter expert, or just getting started, BlogSite provides the tools and community you need to succeed.
+              Whether you're a seasoned writer, subject matter expert, or just getting started, TerryOlise's Blog provides the tools and community you need to succeed.
             </p>
           </div>
 
@@ -96,7 +96,7 @@ export default function About() {
           <div className="bg-white rounded-lg shadow-sm p-8 mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Our Team</h2>
             <p className="text-gray-600 mb-4">
-              BlogSite is built by a passionate team of developers, designers, and content creators who believe in the power of shared knowledge.
+              TerryOlise's Blog is built by a passionate team of developers, designers, and content creators who believe in the power of shared knowledge.
             </p>
             <p className="text-gray-600">
               We're constantly working to improve the platform based on feedback from our community. Have suggestions? We'd love to hear from you!

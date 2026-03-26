@@ -20,8 +20,8 @@ export default function ApiDocs() {
   return (
     <>
       <Helmet>
-        <title>API Documentation - BlogSite</title>
-        <meta name="description" content="Complete API documentation for BlogSite's REST API." />
+        <title>API Documentation - TerryOlise's Blog</title>
+        <meta name="description" content="Complete API documentation for TerryOlise's Blog's REST API." />
       </Helmet>
 
       <div className="min-h-screen bg-gray-50">
@@ -29,7 +29,7 @@ export default function ApiDocs() {
           <div className="mb-8">
             <h1 className="text-4xl font-bold text-gray-900 mb-4">API Documentation</h1>
             <p className="text-xl text-gray-600">
-              Complete reference for integrating with BlogSite's REST API
+              Complete reference for integrating with TerryOlise's Blog's REST API
             </p>
           </div>
 
@@ -82,7 +82,7 @@ function Introduction() {
       
       <div className="prose max-w-none">
         <p className="text-gray-600 mb-6">
-          Welcome to the BlogSite API documentation. Our REST API provides programmatic access to read and write BlogSite data.
+          Welcome to the TerryOlise's Blog API documentation. Our REST API provides programmatic access to read and write TerryOlise's Blog data.
         </p>
 
         <div className="bg-blue-50 border-l-4 border-blue-600 p-6 rounded mb-6">

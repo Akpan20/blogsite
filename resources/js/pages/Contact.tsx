@@ -20,8 +20,8 @@ export default function Contact() {
   return (
     <>
       <Helmet>
-        <title>Contact Us - BlogSite</title>
-        <meta name="description" content="Get in touch with the BlogSite team. We're here to help!" />
+        <title>Contact Us - TerryOlise's Blog</title>
+        <meta name="description" content="Get in touch with the TerryOlise's Blog team. We're here to help!" />
       </Helmet>
 
       <div className="min-h-screen bg-gray-50 py-12">

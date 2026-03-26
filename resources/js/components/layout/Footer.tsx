@@ -13,7 +13,7 @@ function Footer() {
               <div className="w-8 h-8 bg-linear-to-br from-blue-600 to-indigo-600 rounded-lg flex items-center justify-center text-white font-bold">
                 B
               </div>
-              <span className="text-xl font-bold text-white">BlogSite</span>
+              <span className="text-xl font-bold text-white">TerryOlise's Blog</span>
             </div>
             <p className="text-sm text-gray-400 dark:text-gray-500">
               A community-driven platform for sharing knowledge, stories, and expertise.
@@ -142,7 +142,7 @@ function Footer() {
         <div className="border-t border-gray-800 dark:border-gray-700 mt-8 pt-8">
           <div className="flex flex-col md:flex-row justify-between items-center gap-4">
             <p className="text-sm text-gray-400 dark:text-gray-500">
-              © {currentYear} BlogSite. All rights reserved.
+              © {currentYear} TerryOlise's Blog. All rights reserved.
             </p>
 
             {/* Social Links */}

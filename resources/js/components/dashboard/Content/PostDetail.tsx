@@ -151,7 +151,7 @@ export default function PostDetail() {
           },
           publisher: {
             '@type': 'Organization',
-            name: 'Your TerryOlise's Blog',
+            name: 'Your TerryOlise\'s Blog',
             logo: { '@type': 'ImageObject', url: `${siteUrl}/logo.png` },
           },
           mainEntityOfPage: { '@type': 'WebPage', '@id': canonicalUrl },

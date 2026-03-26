@@ -5,8 +5,8 @@ export default function Guidelines() {
   return (
     <>
       <Helmet>
-        <title>Community Guidelines - BlogSite</title>
-        <meta name="description" content="Our community guidelines help maintain a respectful, inclusive environment for all BlogSite members." />
+        <title>Community Guidelines - TerryOlise's Blog</title>
+        <meta name="description" content="Our community guidelines help maintain a respectful, inclusive environment for all TerryOlise's Blog members." />
       </Helmet>
 
       <div className="min-h-screen bg-gray-50 py-12">
@@ -19,7 +19,7 @@ export default function Guidelines() {
           <div className="bg-white rounded-lg shadow-sm p-8 mb-8">
             <h2 className="text-2xl font-bold text-gray-900 mb-4">Our Principles</h2>
             <p className="text-gray-600 mb-4">
-              BlogSite is built on respect, integrity, and the free exchange of ideas. These guidelines help us maintain a community where everyone feels welcome to share and learn.
+              TerryOlise's Blog is built on respect, integrity, and the free exchange of ideas. These guidelines help us maintain a community where everyone feels welcome to share and learn.
             </p>
           </div>
 
