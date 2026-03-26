@@ -190,11 +190,11 @@ class CategorySeeder extends Seeder
         string $color,
         bool $featured,
         int $order,
-        ?int $parentId = null
+        ?string $parentId = null
     ): Category {
         return Category::create([
             'name'        => $name,
-            'slug'        => Str::slug($name),  // ← generate slug explicitly
+            'slug'        => Str::slug($name),
             'icon'        => $icon,
             'color'       => $color,
             'is_featured' => $featured,
