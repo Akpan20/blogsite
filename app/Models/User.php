@@ -18,6 +18,7 @@ use MongoDB\Laravel\Relations\BelongsToMany;  // ← MongoDB relations
 use App\Models\UserSubscription;
 use App\Models\PaymentTransaction;
 use Illuminate\Support\Str;
+use App\Models\Sanctum\PersonalAccessToken;
 
 class User extends Model implements
     \Illuminate\Contracts\Auth\Authenticatable,
@@ -271,5 +272,12 @@ class User extends Model implements
             }
         }
         return true;
+    }
+
+    public function createToken(string $name, array $abilities = ['*']): \Laravel\Sanctum\NewAccessToken
+    {
+        return $this->hasTokenOfType(PersonalAccessToken::class)
+            ? (new PersonalAccessToken())->createToken($this, $name, $abilities)
+            : parent::createToken($name, $abilities);
     }
 }
