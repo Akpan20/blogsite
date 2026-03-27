@@ -14,7 +14,6 @@ class AuthController extends Controller
     {
         $validated = $request->validate([
             'name'     => ['required', 'string', 'max:255'],
-            // unique:users works with laravel-mongodb via its own unique validator
             'username' => ['nullable', 'string', 'max:255', 'unique:users'],
             'email'    => ['required', 'string', 'email', 'max:255', 'unique:users'],
             'password' => ['required', 'confirmed', Password::defaults()],
@@ -22,21 +21,19 @@ class AuthController extends Controller
         ]);
 
         $user = User::create([
-            'name'      => $validated['name'],
-            'username'  => $validated['username'] ?? null,
-            'email'     => $validated['email'],
-            'password'  => Hash::make($validated['password']),
-            'bio'       => $validated['bio'] ?? null,
-            'role'      => 'user',
-            'is_active' => true,
+            'name'     => $validated['name'],
+            'username' => $validated['username'] ?? null,
+            'email'    => $validated['email'],
+            'password' => Hash::make($validated['password']),
+            'bio'      => $validated['bio'] ?? null,
         ]);
 
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $tokenResult = $user->createToken('auth_token'); 
 
         return response()->json([
             'message' => 'Registration successful',
             'user'    => $user,
-            'token'   => $token,
+            'token'   => $tokenResult->plainTextToken, 
         ], 201);
     }
 
@@ -51,13 +48,13 @@ class AuthController extends Controller
             return response()->json(['message' => 'Invalid credentials'], 401);
         }
 
-        $user  = Auth::user();
-        $token = $user->createToken('auth_token')->plainTextToken;
+        $user = Auth::user();
+        $tokenResult = $user->createToken('auth_token');
 
         return response()->json([
             'message' => 'Login successful',
             'user'    => $user,
-            'token'   => $token,
+            'token'   => $tokenResult->plainTextToken,
         ]);
     }
 
@@ -69,7 +66,6 @@ class AuthController extends Controller
 
     public function logoutAll(Request $request)
     {
-        // tokens() relation works identically in laravel-mongodb
         $request->user()->tokens()->delete();
         return response()->json(['message' => 'Logged out from all devices']);
     }

@@ -12,13 +12,12 @@ use Illuminate\Foundation\Auth\Access\Authorizable;
 use Illuminate\Notifications\Notifiable;
 use Illuminate\Database\Eloquent\Factories\HasFactory;
 use Laravel\Sanctum\HasApiTokens;
-use MongoDB\Laravel\Eloquent\Model;           // ← MongoDB base model
-use MongoDB\Laravel\Relations\HasMany;        // ← MongoDB relations
-use MongoDB\Laravel\Relations\BelongsToMany;  // ← MongoDB relations
+use MongoDB\Laravel\Eloquent\Model;
+use MongoDB\Laravel\Relations\HasMany;
+use MongoDB\Laravel\Relations\BelongsToMany;
 use App\Models\UserSubscription;
 use App\Models\PaymentTransaction;
 use Illuminate\Support\Str;
-use App\Models\Sanctum\PersonalAccessToken;
 
 class User extends Model implements
     \Illuminate\Contracts\Auth\Authenticatable,
@@ -35,7 +34,7 @@ class User extends Model implements
         Notifiable;
 
     protected $connection = 'mongodb';
-    protected $collection = 'users'; // MongoDB uses collection not table
+    protected $collection = 'users';
 
     protected $fillable = [
         'name',
@@ -86,6 +85,17 @@ class User extends Model implements
     // ============================================
     // RELATIONSHIPS
     // ============================================
+
+    /**
+     * Get the access tokens that belong to model.
+     *
+     * @return \MongoDB\Laravel\Relations\HasMany
+     */
+    public function tokens()
+    {
+        return $this->hasMany(PersonalAccessToken::class, 'tokenable_id', '_id')
+            ->where('tokenable_type', static::class);
+    }
 
     public function posts(): HasMany
     {

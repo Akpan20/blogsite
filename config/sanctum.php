@@ -46,14 +46,6 @@ return [
         'encrypt_cookies' => Illuminate\Cookie\Middleware\EncryptCookies::class,
         'validate_csrf_token' => Illuminate\Foundation\Http\Middleware\ValidateCsrfToken::class,
     ],
-
-    // ✅✅✅ ADD THIS SECTION ✅✅✅
-    /*
-    |--------------------------------------------------------------------------
-    | Sanctum Models
-    |--------------------------------------------------------------------------
-    */
-    'token_model' => \App\Models\Sanctum\PersonalAccessToken::class,
     // ✅✅✅ END ADDITION ✅✅✅
 
 ];

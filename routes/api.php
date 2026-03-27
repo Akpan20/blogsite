@@ -33,6 +33,21 @@ use App\Http\Controllers\Api\UploadController;
 Route::post('/register', [AuthController::class, 'register']);
 Route::post('/login',    [AuthController::class, 'login']);
 
+Route::get('/api/debug', function () {
+    try {
+        DB::connection('mongodb')->command(['ping' => 1]);
+        return response()->json([
+            'mongodb'    => 'connected ✅',
+            'ext_version' => phpversion('mongodb'),
+        ]);
+    } catch (\Exception $e) {
+        return response()->json([
+            'error'      => $e->getMessage(),
+            'ext_version' => phpversion('mongodb'),
+        ], 500);
+    }
+});
+
 // Slug availability check (public - no auth needed)
 Route::get('/posts/check-slug', [PostController::class, 'checkSlug']);
 
