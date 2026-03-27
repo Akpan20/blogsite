@@ -91,6 +91,9 @@ COPY --from=deps /usr/local/etc/php/conf.d     /usr/local/etc/php/conf.d
 # Copy built application from the builder stage
 COPY --from=builder /app /var/www
 
+# 2. Copy the built assets from the builder
+COPY --from=builder /app/public/build /var/www/public/build
+
 WORKDIR /var/www
 
 # Correct permissions
