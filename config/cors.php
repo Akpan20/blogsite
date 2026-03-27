@@ -2,19 +2,6 @@
 
 return [
 
-    /*
-    |--------------------------------------------------------------------------
-    | Cross-Origin Resource Sharing (CORS) Configuration
-    |--------------------------------------------------------------------------
-    |
-    | Here you may configure your settings for cross-origin resource sharing
-    | or "CORS". This determines what cross-origin operations may execute
-    | in web browsers. You are free to adjust these settings as needed.
-    |
-    | To learn more: https://developer.mozilla.org/en-US/docs/Web/HTTP/CORS
-    |
-    */
-
     'paths' => [
         'api/*',
         'sanctum/csrf-cookie',
@@ -32,17 +19,18 @@ return [
     'allowed_methods' => ['*'],
 
     'allowed_origins' => [
-        'http://localhost:3000',      // React dev server
-        'http://localhost:3001',      // Alternative React port
-        'http://127.0.0.1:3000',      // Alternative localhost
-        'http://localhost:8000',      // Laravel serve
-        'http://127.0.0.1:8000',      // Alternative Laravel
+        // Local development
+        'http://localhost:3000',
+        'http://localhost:3001',
+        'http://127.0.0.1:3000',
+        'http://localhost:8000',
+        'http://127.0.0.1:8000',
+
+        // Production
+        'https://blogsite-rh5v.onrender.com',
     ],
 
-    'allowed_origins_patterns' => [
-        // Add patterns if you need wildcard support
-        // '/^http:\/\/localhost:\d+$/', // Any localhost port
-    ],
+    'allowed_origins_patterns' => [],
 
     'allowed_headers' => ['*'],
 
@@ -50,10 +38,11 @@ return [
         'Authorization',
         'Content-Type',
         'X-Requested-With',
+        'X-XSRF-TOKEN',              // ← add this, Sanctum needs it exposed
     ],
 
-    'max_age' => 0,
+    'max_age' => 86400,              // cache preflight for 24h, reduces OPTIONS requests
 
-    'supports_credentials' => true, // Important for cookies/sessions
+    'supports_credentials' => true,
 
 ];
