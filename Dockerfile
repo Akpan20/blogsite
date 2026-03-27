@@ -1,11 +1,10 @@
 # ╔══════════════════════════════════════════════════════════════╗
 # ║  STAGE 1 — deps                                              ║
 # ║  Installs PHP + Node dependencies in isolation.              ║
-# ║  Rebuilt only when composer.json / package.json change.      ║
 # ╚══════════════════════════════════════════════════════════════╝
 FROM php:8.3-cli-bookworm AS deps
 
-# System libs needed to compile PHP extensions
+# System libs
 RUN apt-get update && apt-get install -y --no-install-recommends \
         git curl zip unzip \
         libzip-dev libpng-dev libonig-dev libxml2-dev \
@@ -13,10 +12,10 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# PHP extensions + MongoDB driver
-RUN docker-php-ext-install zip mbstring exif pcntl bcmath \
-    && pecl install mongodb \
-    && docker-php-ext-enable mongodb \
+# PHP extensions — use install-php-extensions for fast pre-built mongodb
+ADD https://github.com/mlocati/docker-php-extension-installer/releases/latest/download/install-php-extensions /usr/local/bin/
+RUN chmod +x /usr/local/bin/install-php-extensions \
+    && install-php-extensions zip mbstring exif pcntl bcmath mongodb \
     && echo "memory_limit=-1" > /usr/local/etc/php/conf.d/memory.ini
 
 # Node.js 20
@@ -50,20 +49,20 @@ RUN npm ci --legacy-peer-deps
 # ╚══════════════════════════════════════════════════════════════╝
 FROM deps AS builder
 
-# Copy the full application on top of the installed dependencies
 COPY . .
 
-# Build Vite/React frontend
-RUN npm run build
+# Build Vite/React frontend — fail loudly if output is missing
+RUN npm run build \
+    && ls public/build/assets \
+    || (echo "❌ Vite build failed or output missing" && exit 1)
 
-# Dummy env so artisan doesn't crash during cache warming at build time
+# Dummy env so artisan doesn't crash during cache warming
 ENV APP_KEY="base64:DummyKeyForBuildOnly32CharactersX="
 ENV APP_ENV="production"
 ENV DB_CONNECTION="mongodb"
 ENV MONGODB_URI="mongodb://127.0.0.1:27017"
 ENV MONGODB_DATABASE="blogsite"
 
-# Optimise autoloader + warm Laravel caches
 RUN COMPOSER_MEMORY_LIMIT=-1 composer dump-autoload --optimize --no-scripts \
     && php artisan package:discover --ansi \
     && php artisan config:cache \
@@ -77,22 +76,19 @@ RUN COMPOSER_MEMORY_LIMIT=-1 composer dump-autoload --optimize --no-scripts \
 # ╚══════════════════════════════════════════════════════════════╝
 FROM php:8.3-cli-bookworm AS runtime
 
-# Only the runtime system libs (no -dev packages)
+# Runtime system libs only
 RUN apt-get update && apt-get install -y --no-install-recommends \
         libzip4 libpng16-16 libonig5 libxml2 \
         libssl3 libcurl4 ca-certificates openssl \
     && update-ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
-# Copy compiled PHP extensions from the deps stage
+# Copy pre-built PHP extensions from deps stage
 COPY --from=deps /usr/local/lib/php/extensions /usr/local/lib/php/extensions
 COPY --from=deps /usr/local/etc/php/conf.d     /usr/local/etc/php/conf.d
 
-# Copy built application from the builder stage
+# Copy built application from builder stage
 COPY --from=builder /app /var/www
-
-# 2. Copy the built assets from the builder
-COPY --from=builder /app/public/build /var/www/public/build
 
 WORKDIR /var/www
 
@@ -107,9 +103,7 @@ RUN mkdir -p storage/logs \
 
 EXPOSE 8000
 
-# ── Startup ───────────────────────────────────────────────────
-# Config:clear + re-cache here so real Render env vars are picked up,
-# overwriting the dummy values baked in during the builder stage.
+# Re-cache config at startup so real Render env vars override build-time dummies
 CMD ["sh", "-c", "\
     php artisan config:clear && \
     php artisan config:cache && \
