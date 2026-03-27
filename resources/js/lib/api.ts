@@ -1,43 +1,68 @@
 import axios from 'axios';
 
+const BASE_URL = 'https://blogsite-rh5v.onrender.com';
+
 const api = axios.create({
-  baseURL: '/api',
-  withCredentials: true,
+  baseURL: `${BASE_URL}/api`,
+  withCredentials: true,          // sends cookies on every request
   headers: {
-    'Accept': 'application/json',
+    'Accept':       'application/json',
     'Content-Type': 'application/json',
   },
 });
 
+// ── CSRF cookie fetcher (call this before login/register) ─────────────────────
+export async function initCsrf() {
+  await axios.get(`${BASE_URL}/sanctum/csrf-cookie`, {
+    withCredentials: true,        // note: plain axios, NOT the api instance
+  });
+}
+
+// ── Request interceptor — attach XSRF token from cookie ──────────────────────
 api.interceptors.request.use(config => {
+  // Read the XSRF-TOKEN cookie Sanctum sets and forward it as a header
+  const xsrf = document.cookie
+    .split('; ')
+    .find(row => row.startsWith('XSRF-TOKEN='))
+    ?.split('=')[1];
+
+  if (xsrf) {
+    config.headers['X-XSRF-TOKEN'] = decodeURIComponent(xsrf);
+  }
+
+  // Bearer token fallback — only if you're also supporting mobile/token auth
   const token = localStorage.getItem('token');
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+
   return config;
 });
 
-// lib/api.ts or wherever your axios instance lives
+// ── Response interceptor ──────────────────────────────────────────────────────
 api.interceptors.response.use(
   response => response,
-  error => {
-    const config = error.config;
+  async error => {
+    const { config, response } = error;
 
-    // ── Special handling for logout ────────────────────────────────
+    // Swallow logout failures — local state already cleared
     if (config?.url?.includes('/logout')) {
-      // NEVER redirect or touch storage on logout failures
-      // We already cleared locally — just swallow or log
-      console.warn('Logout request failed (normal if token already cleared)', error);
-      return Promise.reject(error); // or return Promise.resolve() if you want to fake success
+      console.warn('Logout request failed — likely token already expired');
+      return Promise.resolve(response);
     }
 
-    // ── Normal 401 handling for ALL OTHER requests ─────────────────
-    if (error.response?.status === 401) {
+    // CSRF token expired — refetch and retry the original request once
+    if (response?.status === 419) {
+      await initCsrf();
+      return api.request(config);
+    }
+
+    // Session expired — clear and redirect
+    if (response?.status === 401) {
       localStorage.removeItem('token');
       delete api.defaults.headers.common['Authorization'];
 
-      // Only redirect if not already on auth pages
-      if (!window.location.pathname.match(/^(\/login|\/register)$/)) {
+      if (!window.location.pathname.match(/^\/(login|register)$/)) {
         window.location.href = '/login';
       }
     }
