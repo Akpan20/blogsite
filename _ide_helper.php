@@ -15048,12 +15048,12 @@ namespace Illuminate\Support\Facades {
          * 
          * The path info always starts with a /.
          * 
-         * Suppose this request is instantiated from /mysite on localhost:
+         * Suppose this request is instantiated from /mysite on 127.0.0.1:
          * 
-         *  * http://localhost/mysite              returns '/'
-         *  * http://localhost/mysite/about        returns '/about'
-         *  * http://localhost/mysite/enco%20ded   returns '/enco%20ded'
-         *  * http://localhost/mysite/about?var=1  returns '/about'
+         *  * http://127.0.0.1/mysite              returns '/'
+         *  * http://127.0.0.1/mysite/about        returns '/about'
+         *  * http://127.0.0.1/mysite/enco%20ded   returns '/enco%20ded'
+         *  * http://127.0.0.1/mysite/about?var=1  returns '/about'
          *
          * @return string The raw path (i.e. not urldecoded)
          * @static
@@ -15070,10 +15070,10 @@ namespace Illuminate\Support\Facades {
          * 
          * Suppose that an index.php file instantiates this request object:
          * 
-         *  * http://localhost/index.php         returns an empty string
-         *  * http://localhost/index.php/page    returns an empty string
-         *  * http://localhost/web/index.php     returns '/web'
-         *  * http://localhost/we%20b/index.php  returns '/we%20b'
+         *  * http://127.0.0.1/index.php         returns an empty string
+         *  * http://127.0.0.1/index.php/page    returns an empty string
+         *  * http://127.0.0.1/web/index.php     returns '/web'
+         *  * http://127.0.0.1/we%20b/index.php  returns '/we%20b'
          *
          * @return string The raw path (i.e. not urldecoded)
          * @static

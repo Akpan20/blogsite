@@ -60,7 +60,7 @@ RUN npm run build
 ENV APP_KEY="base64:DummyKeyForBuildOnly32CharactersX="
 ENV APP_ENV="production"
 ENV DB_CONNECTION="mongodb"
-ENV MONGODB_URI="mongodb://localhost:27017"
+ENV MONGODB_URI="mongodb://127.0.0.1:27017"
 ENV MONGODB_DATABASE="blogsite"
 
 # Optimise autoloader + warm Laravel caches

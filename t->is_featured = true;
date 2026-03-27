@@ -43,7 +43,7 @@
     [34mshares_count[39m: [35m0[39m,
     [34mcreated_at[39m: "[32m2026-02-17 13:00:56[39m",
     [34mupdated_at[39m: "[32m2026-02-18 04:58:17[39m",
-    +[1murl[22m: "[32mhttp://localhost:8000/api/posts/welcome-to-our-blog[39m",
+    +[1murl[22m: "[32mhttp://127.0.0.1:8000/api/posts/welcome-to-our-blog[39m",
     +[1mstatus_label[22m: "[32mPublished[39m",
   }
 

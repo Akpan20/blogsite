@@ -44,14 +44,14 @@ export default defineConfig({
         host: true,
 
         hmr: {
-            host: 'localhost',
+            host: '127.0.0.1',
         },
 
         headers: {
             'Content-Security-Policy': [
                 "default-src 'self'",
                 "script-src 'self' 'unsafe-inline' 'unsafe-eval' https://js.paystack.co https://*.paystack.co https://checkout.paystack.com",
-                "connect-src 'self' https://*.paystack.co https://*.paystack.com api.paystack.co ws://localhost:*",
+                "connect-src 'self' https://*.paystack.co https://*.paystack.com api.paystack.co ws://127.0.0.1:*",
                 "img-src 'self' data: blob: https://*.paystack.co https://*.paystack.com",
                 "style-src 'self' 'unsafe-inline'",
                 "font-src 'self' data:",

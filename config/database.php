@@ -19,13 +19,12 @@ return [
     'connections' => [
         'mongodb' => [
             'driver'   => 'mongodb',
-            'dsn'      => env('MONGODB_URI'),
+            'dsn'      => env('MONGODB_URI', 'mongodb://127.0.0.1:27017/blogsite'),
             'database' => env('MONGODB_DATABASE', 'blogsite'),
             'options'  => [
                 'serverSelectionTimeoutMS' => 5000,
-                'tls'                      => true,
+                'tls'                      => env('MONGODB_TLS', false),
                 'retryWrites'              => false,
-                'appname'                  => 'laravel',
             ],
         ],
     ],
