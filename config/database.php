@@ -18,9 +18,9 @@ return [
     */
     'connections' => [
         'mongodb' => [
-            'driver' => 'mongodb',
-            'dsn' => env('DB_URI'),
-            'database' => env('DB_DATABASE', 'blogsite'),
+            'driver'   => 'mongodb',
+            'dsn'      => 'mongodb+srv://skyconet_db_user:5xXLzxmJrzbeKxST@cluster0.0arur3r.mongodb.net/blogsite?retryWrites=true&w=majority&tls=true&authSource=admin',
+            'database' => 'blogsite',
         ],
     ],
 
