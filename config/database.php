@@ -18,14 +18,9 @@ return [
     */
     'connections' => [
         'mongodb' => [
-            'driver'   => 'mongodb',
-            'dsn'      => env('MONGODB_URI', 'mongodb://127.0.0.1:27017/blogsite'),
-            'database' => env('MONGODB_DATABASE', 'blogsite'),
-            'options'  => [
-                'serverSelectionTimeoutMS' => 5000,
-                'tls'                      => env('MONGODB_TLS', false),
-                'retryWrites'              => false,
-            ],
+            'driver' => 'mongodb',
+            'dsn' => env('DB_URI'),
+            'database' => env('DB_DATABASE', 'blogsite'),
         ],
     ],
 

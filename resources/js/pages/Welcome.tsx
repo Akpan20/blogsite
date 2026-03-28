@@ -62,7 +62,7 @@ const CtaButton = () => {
   );
 };
 
-export default function Welcome() {
+const Welcome = () => {
   return (
     <>
       <SEOHead
@@ -197,3 +197,5 @@ export default function Welcome() {
     </>
   );
 }
+
+export default Welcome;
