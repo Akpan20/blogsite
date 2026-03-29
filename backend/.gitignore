@@ -1,0 +1,40 @@
+# backend/.gitignore
+
+# IDE Helpers (generated locally)
+.phpstorm.meta.php
+_ide_helper.php
+_ide_helper_models.php
+
+# Environment
+.env
+.env.*.local
+.env.*.production
+
+# Dependencies
+vendor/
+
+# Storage
+storage/*.key
+storage/logs/*
+storage/framework/cache/*
+storage/framework/sessions/*
+storage/framework/views/*
+
+# Testing
+.phpunit.result.cache
+coverage/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
