@@ -1,0 +1,22 @@
+stages:
+  - build
+  - test
+
+build-frontend:
+  stage: build
+  image: node:20
+  script:
+    - cd frontend
+    - npm install
+    - npm run build
+  artifacts:
+    paths:
+      - frontend/dist/
+
+test-backend:
+  stage: test
+  image: php:8.2-cli
+  script:
+    - cd backend
+    - composer install
+    - php artisan test   # remove if not using Laravel
